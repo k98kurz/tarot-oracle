@@ -10,9 +10,9 @@ This is currently a work-in-progress. Remaining work before the v0.1.0 release:
 - [ ] Import error resolution (fix numinous.tarot imports)
 - [ ] Security hardening (path traversal fixes, input validation)
 - [ ] Type system modernization (Python 3.10+ built-in types)
-- [ ] Centralized configuration system (~/.tarot-oracle/ directory)
-- [ ] Custom feature loaders (invocations, spreads, decks)
-- [ ] Enhanced semantic system with guidance rules
+- [ ] Centralized configuration system (~/.tarot-oracle/ directory with config.json)
+- [ ] Custom feature loaders (plain text invocations, semantic spreads, decks)
+- [ ] Enhanced semantic system with guidance rules and variable placeholder syntax
 - [ ] OpenRouter integration for additional AI providers
 - [ ] CLI unification with subcommands
 - [ ] Comprehensive error handling with custom exceptions
