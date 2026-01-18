@@ -159,22 +159,33 @@ class DeckLoader:
 
     @staticmethod
     def resolve_deck_path(filename: str) -> Optional[str]:
-        """Resolve deck filename using search order:
+        """Resolve deck filename using search order with security validation:
         1. ./{filename}
         2. ./{filename}.json
-        3. ~/.tarot/decks/{filename}
-        4. ~/.tarot/decks/{filename}.json
+        3. ~/.tarot-oracle/decks/{filename}
+        4. ~/.tarot-oracle/decks/{filename}.json
         """
+        # Sanitize filename to prevent path traversal
+        import re
+        safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
+        safe_filename = safe_filename.lstrip('.-')
+        if not safe_filename:
+            return None
+            
         search_paths = [
-            Path.cwd() / filename,
-            Path.cwd() / f"{filename}.json",
-            Path.home() / ".tarot" / "decks" / filename,
-            Path.home() / ".tarot" / "decks" / f"{filename}.json"
+            Path.cwd() / safe_filename,
+            Path.cwd() / f"{safe_filename}.json",
+            Path.home() / ".tarot-oracle" / "decks" / safe_filename,
+            Path.home() / ".tarot-oracle" / "decks" / f"{safe_filename}.json"
         ]
 
         for path in search_paths:
             if path.exists() and path.is_file():
-                return str(path)
+                resolved = path.resolve()
+                # Ensure path is within expected directories
+                if (resolved.is_relative_to(Path.cwd()) or 
+                    resolved.is_relative_to(Path.home() / ".tarot-oracle")):
+                    return str(resolved)
         return None
 
     @staticmethod

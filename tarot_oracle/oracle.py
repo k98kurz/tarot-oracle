@@ -8,11 +8,9 @@ from typing import Optional, List, Dict, Any
 import requests
 from datetime import datetime
 import re
+from pathlib import Path
 
-# Add current directory to Python path to import numinous modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from numinous.tarot import (
+from tarot_oracle.tarot import (
     TarotDivination,
     SpreadRenderer,
     SPREADS,
@@ -23,21 +21,14 @@ from numinous.tarot import (
     SEMANTICS
 )
 
+# Import configuration
+from tarot_oracle.config import config
+
 # Import Gemini SDK when available
 try:
     from google import genai
 except ImportError:
     genai = None
-
-
-# Environment variables
-ORACLE_PROVIDER = os.getenv("ORACLE_PROVIDER", "gemini")
-GOOGLE_AI_API_KEY = os.getenv("GOOGLE_AI_API_KEY")
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "localhost:11434")
-
-# Session autosaving
-AUTOSAVE_SESSIONS = os.getenv("AUTOSAVE_SESSIONS", "true").lower() in ("true", "1")
-AUTOSAVE_LOCATION = os.path.expanduser(os.getenv("AUTOSAVE_LOCATION", "~/oracles"))
 
 
 class InvocationManager:
@@ -151,8 +142,11 @@ def extract_card_codes_for_filename(legend_display: str) -> List[str]:
 
 def generate_session_filename(card_codes: List[str]) -> str:
     """Generate filename with timestamp and card codes."""
+    import re
     timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-    codes_str = "-".join(card_codes) if card_codes else "no-cards"
+    # Sanitize card codes to prevent injection
+    safe_codes = [re.sub(r'[^a-zA-Z0-9]', '', code) for code in card_codes if code]
+    codes_str = "-".join(safe_codes) if safe_codes else "no-cards"
     return f"{timestamp}-{codes_str}.md"
 
 
@@ -176,6 +170,12 @@ def save_oracle_session(question: str, spread_type: str, result: dict, save_loca
         card_codes = extract_card_codes_for_filename(result['legend_display'])
         filename = generate_session_filename(card_codes)
         filepath = os.path.join(save_location, filename)
+        
+        # Validate filepath is safe
+        save_path = Path(save_location).resolve()
+        full_path = Path(filepath).resolve()
+        if not full_path.is_relative_to(save_path):
+            raise ValueError(f"Invalid file path: {filepath}")
 
         # Build content by mirroring the exact print statements
         content = []
@@ -221,10 +221,10 @@ class Oracle:
         self.tarot = TarotDivination()
 
         # Provider selection
-        self.provider = provider or ORACLE_PROVIDER
+        self.provider = provider or config.provider
 
         if self.provider == "gemini":
-            api_key = api_key or GOOGLE_AI_API_KEY
+            api_key = api_key or config.google_ai_api_key
             if not api_key:
                 raise ValueError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider")
             if genai is None:
@@ -233,7 +233,7 @@ class Oracle:
             self.default_model = model or "gemini-3-flash"
 
         elif self.provider == "ollama":
-            host = ollama_host or OLLAMA_HOST
+            host = ollama_host or config.ollama_host
             self.client = OllamaClient(host)
             self.default_model = model or "mistral"
         else:
@@ -454,8 +454,8 @@ def main(args=None):
         print_interpretation(result["interpretation"])
 
     # Determine save behavior
-    should_save = AUTOSAVE_SESSIONS
-    save_location = AUTOSAVE_LOCATION
+    should_save = config.autosave_sessions
+    save_location = config.autosave_location
 
     if args.save:
         should_save = True
