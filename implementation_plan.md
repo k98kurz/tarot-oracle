@@ -4,7 +4,7 @@
 
 ### Task 3.2: Custom Feature Loaders
 
-- Status: Done ✅
+- Status: Completed ✅
 - Description: Create extensible loaders for custom invocations and spreads
 - Acceptance Criteria:
         - ✅ Create `InvocationLoader` class with `load_invocation(name)` and `list_invocations()` methods
@@ -17,15 +17,15 @@
 
 ### Task 4.1: Enhanced Semantic System
 
-- Status: Pending
+- Status: Done ✅
 - Description: Refactor semantic analysis to support custom guidance rules with variable placeholder syntax
 - Acceptance Criteria:
-        - Add support for semantic_groups with descriptions in spread definitions
-        - Implement variable placeholder syntax like "${water}", "${fire}", "${air}", "${earth}", "${spirit}" in semantics matrix
-        - Add guidance rules with markdown output formatting
-        - Create `SemanticAnalyzer` class for rule-based interpretation
-        - Extend `SemanticAdapter` to process both position semantics and general guidance
-        - Test Zodiac and Zodiac Plus spread semantic integration
+        - ✅ Add support for semantic_groups with descriptions in spread definitions
+        - ✅ Implement variable placeholder syntax like "${water}", "${fire}", "${air}", "${earth}", "${spirit}" in semantics matrix
+        - ✅ Add guidance rules with markdown output formatting
+        - ✅ Create `SemanticAnalyzer` class for rule-based interpretation
+        - ✅ Extend SemanticAdapter to process both position semantics and general guidance
+        - ✅ Test Zodiac and Zodiac Plus spread semantic integration
 
 ### Task 4.2: OpenRouter Integration
 
@@ -90,32 +90,32 @@
 ## Current Status & Priority
 
 ### Completed Tasks
+- ✅ **Task 3.2: Custom Feature Loaders** - Create extensible loaders for custom invocations and spreads (COMPLETED - Iteration 9)
 - ✅ **Task 3.1: Centralized Configuration System** - Implement unified config management with `~/.tarot-oracle/` directory structure
 - ✅ **Task 2.1: Unified Type System** - Modernized type annotations throughout codebase
 - ✅ **Task 2.2: Type Safety Improvements** - Removed all type ignore comments and improved type safety
 - ✅ **Phase 1: Critical Infrastructure Fixes** - Package structure, import errors, and security hardening
 
-### Next Priority Tasks (Iteration 7)
-1. **Task 3.2: Custom Feature Loaders** - Create loaders for custom invocations and spreads (IN REVIEW)
-2. **Task 4.1: Enhanced Semantic System** - Refactor semantic analysis to support custom guidance rules
-3. **Task 4.2: OpenRouter Integration** - Add OpenRouter client to oracle system
+### Next Priority Tasks (Iteration 11)
+1. **Task 4.2: OpenRouter Integration** - Add OpenRouter client to oracle system
+2. **Task 4.3: CLI Unification** - Consolidate separate CLI tools into unified interface
+3. **Task 5.1: Error Handling & Custom Exceptions** - Add comprehensive error handling
 
 ### Implementation Priority
 
-**Phase 3 (COMPLETED - Iteration 7)**: Task 3.2 - Build loader infrastructure for custom features
-**Phase 4 (NEXT - Iteration 8)**: Tasks 4.1, 4.2, 4.3 - Enable semantic enhancements, OpenRouter integration, and CLI unification
+**Phase 3 (COMPLETED - Iteration 9)**: Task 3.2 - Build loader infrastructure for custom features
+**Phase 4 (CURRENT - Iteration 11)**: Tasks 4.2, 4.3 - Enable OpenRouter integration and CLI unification
 **Phase 5 (Final)**: Tasks 5.1, 5.2 - Add comprehensive error handling and documentation
 
 Each phase should be completed and tested before proceeding to the next phase to ensure a stable foundation for subsequent development work.
 
-### Iteration 7 Status Update
-- Current iteration: 7
+### Iteration 10 Status Update
+- Current iteration: 10
 - Enhanced mode: Yes
-- Progress: Task 3.1 COMPLETED ✅
-- Centralized configuration system fully implemented and tested
-- All hardcoded paths replaced with Config class references
-- Directory structure `~/.tarot-oracle/` with subdirectories created automatically
-- Configuration precedence working (config.json > env vars > defaults)
-- Comprehensive test coverage for configuration system
-- Both CLI tools successfully updated to use centralized config
-- Ready to proceed with Task 3.2: Custom Feature Loaders
+- Progress: Task 3.2 COMPLETED ✅
+- Custom feature loader system fully implemented with comprehensive security validation
+- InvocationLoader and SpreadLoader classes complete with variable placeholder support
+- Path traversal prevention and filename sanitization implemented across all loaders
+- Integration with centralized config system verified
+- Comprehensive test coverage for all loader functionality
+- Ready to proceed with Task 4.1: Enhanced Semantic System

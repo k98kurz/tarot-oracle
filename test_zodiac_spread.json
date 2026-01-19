@@ -1,0 +1,63 @@
+{
+  "name": "Zodiac",
+  "description": "12-card zodiac spread with elemental associations",
+  "layout": [
+    [1, 2, 3, 4],
+    [5, 6, 7, 8],
+    [9, 10, 11, 12]
+  ],
+  "semantics": [
+    ["${fire}", "${earth}", "${air}", "${water}"],
+    ["${fire}", "${earth}", "${air}", "${water}"],
+    ["${spirit}", "${spirit}", "${spirit}", "${spirit}"]
+  ],
+  "semantic_groups": {
+    "fire_signs": {
+      "description": "Aries, Leo, Sagittarius - Initiative and Action",
+      "positions": [1, 5, 9]
+    },
+    "earth_signs": {
+      "description": "Taurus, Virgo, Capricorn - Stability and Material Matters",
+      "positions": [2, 6, 10]
+    },
+    "air_signs": {
+      "description": "Gemini, Libra, Aquarius - Communication and Intellect",
+      "positions": [3, 7, 11]
+    },
+    "water_signs": {
+      "description": "Cancer, Scorpio, Pisces - Emotion and Intuition",
+      "positions": [4, 8, 12]
+    }
+  },
+  "guidance_rules": [
+    {
+      "conditions": {
+        "cards": [
+          {
+            "type": "in_group",
+            "group": "fire_signs",
+            "cards": ["The Tower", "Death", "The Devil"]
+          }
+        ]
+      },
+      "guidance": "**Major Transformation**: ${fire} signs indicate profound life changes are at hand"
+    },
+    {
+      "conditions": {
+        "major_arcana_min": 6
+      },
+      "guidance": "**Karmic Reading**: The presence of many Major Arcana cards suggests this is a significant spiritual turning point"
+    },
+    {
+      "conditions": {
+        "cards": [
+          {
+            "type": "anywhere",
+            "cards": ["The Lovers", "Two of Cups", "Ten of Cups"]
+          }
+        ]
+      },
+      "guidance": "**Relationship Focus**: Love and partnership energies are central to this reading"
+    }
+  ]
+}
