@@ -109,6 +109,80 @@ class GeminiClient:
             return False
 
 
+class OpenRouterClient:
+    """Client for OpenRouter API."""
+
+    def __init__(self, api_key: str, model: str = "z-ai/glm-4.5-air:free"):
+        self.api_key = api_key
+        self.model = model
+        self.base_url = "https://openrouter.ai/api/v1"
+
+    def generate_response(self, prompt: str, model: str | None = None, timeout: int = 30) -> str | None:
+        """Generate response from OpenRouter model."""
+        url = f"{self.base_url}/chat/completions"
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/tarot-oracle/tarot-oracle",
+            "X-Title": "Tarot Oracle"
+        }
+        
+        payload = {
+            "model": model or self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "max_tokens": 2048,
+            "temperature": 0.7
+        }
+        
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if "choices" in result and len(result["choices"]) > 0:
+                    content = result["choices"][0]["message"]["content"]
+                    return content.strip() if content else None
+                else:
+                    print(f"Error: Invalid response format from OpenRouter", file=sys.stderr)
+                    return None
+            elif response.status_code == 401:
+                print(f"Error: Invalid OpenRouter API key", file=sys.stderr)
+                return None
+            elif response.status_code == 429:
+                print(f"Error: OpenRouter API rate limit exceeded", file=sys.stderr)
+                return None
+            else:
+                print(f"Error: OpenRouter API returned status {response.status_code}: {response.text}", file=sys.stderr)
+                return None
+                
+        except requests.exceptions.Timeout:
+            print(f"Error: OpenRouter API request timed out after {timeout} seconds", file=sys.stderr)
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error: OpenRouter API request failed: {e}", file=sys.stderr)
+            return None
+        except Exception as e:
+            print(f"Error: Unexpected error calling OpenRouter API: {e}", file=sys.stderr)
+            return None
+
+    def check_api_key(self) -> bool:
+        """Check if API key is valid."""
+        try:
+            # Simple test request with minimal content
+            test_prompt = "Hello, please respond with 'API key is valid' to confirm the connection."
+            response = self.generate_response(test_prompt, timeout=10)
+            return response is not None and "API key is valid" in response.lower()
+        except Exception as e:
+            print(f"Error validating OpenRouter API key: {e}", file=sys.stderr)
+            return False
+
+
 class OllamaClient:
     """Simple client for Ollama API."""
 
@@ -255,6 +329,13 @@ class Oracle:
             self.client = GeminiClient(api_key, model or "gemini-3-flash")
             self.default_model = model or "gemini-3-flash"
 
+        elif self.provider == "openrouter":
+            api_key = api_key or config.openrouter_api_key
+            if not api_key:
+                raise ValueError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider")
+            self.client = OpenRouterClient(api_key, model or "z-ai/glm-4.5-air:free")
+            self.default_model = model or "z-ai/glm-4.5-air:free"
+
         elif self.provider == "ollama":
             host = ollama_host or config.ollama_host
             self.client = OllamaClient(host)
@@ -262,7 +343,7 @@ class Oracle:
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
-    def get_client(self) -> GeminiClient | OllamaClient:
+    def get_client(self) -> GeminiClient | OpenRouterClient | OllamaClient:
         return self.client
 
     def get_default_model(self) -> str:
@@ -306,7 +387,7 @@ Pay special attention to the positional meanings and how they affect each card's
         if model is None:
             model = self.default_model
 
-        timeout = 30 if self.provider == "gemini" else 300
+        timeout = 30 if self.provider in ["gemini", "openrouter"] else 300
 
         try:
             prompt = self.build_interpretation_prompt(spread_display, legend_display, invocation, question, spread_type)
@@ -376,7 +457,7 @@ def create_oracle_parser() -> ArgumentParser:
                        help=f"Spread layout (default: 3-card). Available: {list(SPREADS.keys())} or custom matrix")
 
     # Oracle-specific features
-    parser.add_argument("--provider", choices=["gemini", "ollama"],
+    parser.add_argument("--provider", choices=["gemini", "openrouter", "ollama"],
                        default="gemini", help="LLM provider (default: gemini)")
     parser.add_argument("--invocation",
                        help="Custom invocation text (defaults to Hermes-Thoth/Prometheus if not provided)")
@@ -385,7 +466,7 @@ def create_oracle_parser() -> ArgumentParser:
     parser.add_argument("--model", help="Model name (provider-specific)")
 
     # Provider-specific options
-    parser.add_argument("--api-key", help="API key (for gemini provider)")
+    parser.add_argument("--api-key", help="API key (for gemini or openrouter provider)")
     parser.add_argument("--ollama-host", help="Ollama host (for ollama provider)")
     parser.add_argument("--timeout", type=int, help="Timeout in seconds (default: 30 gemini, 300 ollama)")
 
@@ -453,7 +534,16 @@ def main(args=None):
 
     # Check availability if interpretation requested
     if args.interpret:
-        if args.provider == "ollama":
+        if args.provider == "openrouter":
+            client = oracle.get_client()
+            # We know this is OpenRouterClient when provider is "openrouter"
+            if hasattr(client, 'check_api_key'):
+                # Type assertion: we know this method exists due to hasattr check
+                openrouter_client = cast(OpenRouterClient, client)
+                api_key_valid = openrouter_client.check_api_key()
+                if not api_key_valid:
+                    print(f"Warning: OpenRouter API key validation failed. Interpretation may not be available.")
+        elif args.provider == "ollama":
             client = oracle.get_client()
             # We know this is OllamaClient when provider is "ollama"
             if hasattr(client, 'check_model_available'):
