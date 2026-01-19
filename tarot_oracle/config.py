@@ -8,7 +8,7 @@ from typing import Any
 
 class Config:
     """Centralized configuration for Tarot Oracle."""
-    
+
     def __init__(self) -> None:
         """Initialize configuration with defaults and load from file/environment."""
         self.home_dir = Path.home() / ".tarot-oracle"
@@ -16,7 +16,7 @@ class Config:
         self.decks_dir = self.home_dir / "decks"
         self.invocations_dir = self.home_dir / "invocations"
         self.spreads_dir = self.home_dir / "spreads"
-        
+
         # Default configuration
         self.config: dict[str, Any] = {
             "provider": "gemini",
@@ -28,12 +28,12 @@ class Config:
             "default_spread": "celtic_cross",
             "max_file_size": 1024 * 1024,  # 1MB
         }
-        
+
         # Load configuration
         self._load_config()
         self._load_env_vars()
         self._ensure_directories()
-    
+
     def _load_config(self) -> None:
         """Load configuration from config.json file."""
         if self.config_file.exists():
@@ -44,7 +44,7 @@ class Config:
             except (json.JSONDecodeError, OSError) as e:
                 # Log error but continue with defaults
                 print(f"Warning: Could not load config file: {e}")
-    
+
     def _load_env_vars(self) -> None:
         """Load configuration from environment variables."""
         env_mappings = {
@@ -55,7 +55,7 @@ class Config:
             "AUTOSAVE_SESSIONS": "autosave_sessions",
             "AUTOSAVE_LOCATION": "autosave_location",
         }
-        
+
         for env_var, config_key in env_mappings.items():
             value = os.getenv(env_var)
             if value is not None:
@@ -64,7 +64,7 @@ class Config:
                     self.config[config_key] = value.lower() in ("true", "1", "yes")
                 else:
                     self.config[config_key] = value
-    
+
     def _ensure_directories(self) -> None:
         """Ensure all required directories exist."""
         directories = [
@@ -73,21 +73,21 @@ class Config:
             self.invocations_dir,
             self.spreads_dir,
         ]
-        
+
         for directory in directories:
             try:
                 directory.mkdir(parents=True, exist_ok=True)
             except OSError as e:
                 print(f"Error creating directory {directory}: {e}")
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value."""
         return self.config.get(key, default)
-    
+
     def set(self, key: str, value: Any) -> None:
         """Set configuration value."""
         self.config[key] = value
-    
+
     def save(self) -> None:
         """Save current configuration to file."""
         try:
@@ -96,42 +96,42 @@ class Config:
                 json.dump(self.config, f, indent=2)
         except OSError as e:
             print(f"Error saving config file: {e}")
-    
+
     @property
     def provider(self) -> str:
         """Get the AI provider."""
         return self.get("provider", "gemini")
-    
+
     @property
     def google_ai_api_key(self) -> str | None:
         """Get the Google AI API key."""
         return self.get("google_ai_api_key")
-    
+
     @property
     def openrouter_api_key(self) -> str | None:
         """Get the OpenRouter API key."""
         return self.get("openrouter_api_key")
-    
+
     @property
     def ollama_host(self) -> str:
         """Get the Ollama host."""
         return self.get("ollama_host", "localhost:11434")
-    
+
     @property
     def autosave_sessions(self) -> bool:
         """Get whether to autosave sessions."""
         return self.get("autosave_sessions", True)
-    
+
     @property
     def autosave_location(self) -> str:
         """Get the autosave location."""
         return self.get("autosave_location", str(Path.home() / "oracles"))
-    
+
     @property
     def default_spread(self) -> str:
         """Get the default spread."""
         return self.get("default_spread", "celtic_cross")
-    
+
     @property
     def max_file_size(self) -> int:
         """Get the maximum file size."""
