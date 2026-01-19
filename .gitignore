@@ -1,3 +1,4 @@
 .opencode/
 *venv*
 **/__pycache__
+test_env*

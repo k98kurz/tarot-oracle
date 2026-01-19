@@ -488,6 +488,24 @@ class DeckLoader:
         decks.sort(key=lambda x: x["filename"])
         return decks
 
+    def load_deck(self, deck_name: str) -> "Deck":
+        """Load a deck by name using search order and return a Deck instance.
+        
+        Args:
+            deck_name: Name of deck to load (without .json extension)
+            
+        Returns:
+            Deck: Loaded deck instance
+            
+        Raises:
+            DeckLoadError: If deck file is not found or invalid
+        """
+        deck_path = self.resolve_deck_path(deck_name)
+        if deck_path is None:
+            raise DeckLoadError(f"Deck '{deck_name}' not found in search paths")
+        
+        return Deck(deck_path)
+
 
 @dataclass
 class Card:
