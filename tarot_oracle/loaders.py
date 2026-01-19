@@ -1,4 +1,23 @@
-"""Unified loader system for custom invocations and spreads."""
+"""Unified loader system for custom invocations and spreads.
+
+This module provides secure loading of user-defined invocations and spread
+configurations. It implements proper path validation, search order
+prioritization, and security measures to prevent path traversal
+attacks.
+
+Features:
+- Secure file loading with path traversal protection
+- Search order: current directory, then user config directory
+- Support for .txt, .md, and .json file formats
+- Comprehensive error handling and validation
+- Metadata extraction for file listings
+
+Example:
+    >>> inv_loader = InvocationLoader()
+    >>> text = inv_loader.load_invocation("my-custom")
+    >>> spread_loader = SpreadLoader()
+    >>> spread = spread_loader.load_spread("celtic-cross-enhanced")
+"""
 
 import json
 import re
@@ -15,7 +34,32 @@ from tarot_oracle.exceptions import (
 
 
 class InvocationLoader:
-    """Handles loading and management of custom invocation files."""
+    """Handles loading and management of custom invocation files.
+    
+    Provides secure loading of invocation text files with support for multiple
+    formats and comprehensive search order prioritization.
+    
+    Search Order:
+        1. ./name (exact match)
+        2. ./name.txt 
+        3. ./name.md
+        4. ~/.tarot-oracle/invocations/name
+        5. ~/.tarot-oracle/invocations/name.txt
+        6. ~/.tarot-oracle/invocations/name.md
+    
+    Attributes:
+        No persistent attributes - stateless loader design.
+        
+    Example:
+        >>> loader = InvocationLoader()
+        >>> invocation = loader.load_invocation("hermes-thoth")
+        >>> if invocation:
+        ...     print(invocation)
+        >>> 
+        >>> invocations = loader.list_invocations()
+        >>> for item in invocations:
+        ...     print(f"{item['filename']}: {item['preview']}")
+    """
 
     def load_invocation(self, name: str) -> str | None:
         """Load invocation text by name using search order with security validation:
@@ -99,7 +143,56 @@ class InvocationLoader:
 
 
 class SpreadLoader:
-    """Handles loading and management of custom spread configurations."""
+    """Handles loading and management of custom spread configurations.
+    
+    Provides secure loading of custom spread configurations in JSON format with
+    comprehensive validation, search order prioritization, and semantic analysis
+    support. Supports variable placeholder syntax and guidance rule systems.
+    
+    Features:
+        - Secure JSON spread loading with path traversal protection
+        - Search order: current directory, then user config directory
+        - Support for semantic groups and variable placeholders
+        - Validation of spread dimensions and configurations
+        - Guidance rule system for enhanced interpretations
+        - Metadata extraction for spread listings
+        - Support for both matrix and dictionary formats
+        
+    Search Order:
+        1. ./{name}.json
+        2. ~/.tarot-oracle/spreads/{name}.json
+    
+    Security Features:
+        - Path traversal protection
+        - Filename sanitization
+        - Directory validation
+        - Safe file resolution
+        
+    Example:
+        >>> loader = SpreadLoader()
+        >>> spread = loader.load_spread("celtic-cross-enhanced")
+        >>> print(spread["name"])
+        >>> print(spread["layout"])  # Card position matrix
+        >>> print(spread.get("semantic_groups"))  # If semantic analysis enabled
+        >>> 
+        >>> # List available spreads
+        >>> spreads = loader.list_spreads()
+        >>> for spread in spreads:
+        ...     print(f"{spread['filename']}: {spread['name']}")
+        >>> 
+        >>> # Save new spread
+        >>> new_spread = {
+        ...     "name": "3-Card Enhanced",
+        ...     "description": "Past, present, future with semantic analysis",
+        ...     "layout": [[0], [1], [2]],
+        ...     "semantic_groups": {
+        ...         "past": {"positions": [0], "description": "Past influences"},
+        ...         "present": {"positions": [1], "description": "Current situation"},
+        ...         "future": {"positions": [2], "description": "Future potential"}
+        ...     }
+        ... }
+        >>> loader.save_spread("3-card-enhanced", new_spread)
+    """
 
     def load_spread(self, name: str) -> dict[str, Any] | None:
         """Load spread configuration by name using search order with security validation.

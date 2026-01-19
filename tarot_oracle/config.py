@@ -1,4 +1,44 @@
-"""Centralized configuration management for Tarot Oracle."""
+"""Centralized configuration management for Tarot Oracle.
+
+This module provides comprehensive configuration management with support for
+environment variables, configuration files, and runtime updates. It manages
+all aspects of the tarot oracle system including AI providers,
+file paths, and user preferences.
+
+The configuration system follows this precedence order:
+1. Default values (hardcoded)
+2. Configuration file (~/.tarot-oracle/config.json)
+3. Environment variables
+4. Runtime modifications
+
+Configuration Options:
+    - provider: AI provider to use ('gemini', 'openrouter', 'ollama')
+    - google_ai_api_key: API key for Google Gemini provider
+    - openrouter_api_key: API key for OpenRouter provider  
+    - ollama_host: Host address for Ollama server (default: 'localhost:11434')
+    - autosave_sessions: Whether to automatically save sessions (default: True)
+    - autosave_location: Directory path for session saving (default: '~/oracles')
+    - default_spread: Default spread type for readings (default: 'celtic_cross')
+    - max_file_size: Maximum file size for custom configurations (default: 1MB)
+
+Environment Variables:
+    - ORACLE_PROVIDER: Override AI provider selection
+    - GOOGLE_AI_API_KEY: Google Gemini API key
+    - OPENROUTER_API_KEY: OpenRouter API key
+    - OLLAMA_HOST: Ollama server host address
+    - AUTOSAVE_SESSIONS: Enable/disable session autosaving ('true'/'false')
+    - AUTOSAVE_LOCATION: Override session save directory
+
+Example:
+    >>> from tarot_oracle.config import config
+    >>> print(config.provider)  # Get current provider
+    >>> config.set("provider", "openrouter")  # Set new provider
+    >>> config.save()  # Persist changes
+    >>> 
+    >>> # Environment variable usage
+    >>> # In shell: export ORACLE_PROVIDER=openrouter
+    >>> # In Python: config.provider will use environment value
+"""
 
 import json
 import os
@@ -8,7 +48,36 @@ from tarot_oracle.exceptions import ConfigError
 
 
 class Config:
-    """Centralized configuration for Tarot Oracle."""
+    """Centralized configuration for Tarot Oracle.
+    
+    Manages all configuration aspects including AI provider settings,
+    file paths, user preferences, and security parameters.
+    Provides both property-based and dictionary-style access.
+    
+    Attributes:
+        home_dir (Path): Main configuration directory (~/.tarot-oracle)
+        config_file (Path): Path to config.json file
+        decks_dir (Path): Directory for custom deck configurations
+        invocations_dir (Path): Directory for custom invocation files
+        spreads_dir (Path): Directory for custom spread configurations
+        
+    Configuration Options:
+        - provider: AI provider to use (gemini, openrouter, ollama)
+        - google_ai_api_key: API key for Google Gemini
+        - openrouter_api_key: API key for OpenRouter
+        - ollama_host: Host address for Ollama server
+        - autosave_sessions: Whether to automatically save sessions
+        - autosave_location: Directory path for session saving
+        - default_spread: Default spread type for readings
+        - max_file_size: Maximum file size for custom configurations
+        
+    Example:
+        >>> config = Config()
+        >>> provider = config.provider
+        >>> api_key = config.google_ai_api_key
+        >>> config.set("provider", "openrouter")
+        >>> config.save()
+    """
 
     def __init__(self) -> None:
         """Initialize configuration with defaults and load from file/environment."""
