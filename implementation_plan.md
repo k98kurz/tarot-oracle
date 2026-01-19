@@ -6,6 +6,8 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 
 ## Phase 1: Critical Infrastructure Fixes
 
+- Status: In Progress
+
 ### Task 1.1: Package Structure & Entry Points
 **Description**: Create proper Python package structure with modern type annotations and PyPI-ready configuration
 **Files to Create/Modify**:
@@ -63,6 +65,8 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 
 ## Phase 2: Type System Modernization
 
+- Status: Pending
+
 ### Task 2.1: Unified Type System
 **Description**: Standardize on built-in generic types throughout the codebase
 **Files to Modify**:
@@ -104,6 +108,8 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 - Run comprehensive type checking to ensure no regressions
 
 ## Phase 3: Configuration Architecture
+
+- Status: Pending
 
 ### Task 3.1: Centralized Configuration System
 **Description**: Implement unified configuration management with `~/.tarot-oracle/` directory structure
@@ -171,6 +177,8 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 
 ## Phase 4: Feature Integration Preparation
 
+- Status: Pending
+
 ### Task 4.1: Enhanced Semantic System
 **Description**: Refactor semantic analysis to support custom guidance rules with variable placeholder syntax
 **Files to Modify**:
@@ -212,6 +220,7 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 - Add OpenRouter-specific configuration (API key, model preferences)
 - Implement proper error handling for API rate limits and authentication
 - Add model capability checking and fallback logic
+- Use "z-ai/glm-4.5-air:free" as the default model
 
 **Requirements for Basic Unit Testing**:
 - Test OpenRouter client initialization with valid/invalid API keys
@@ -250,6 +259,8 @@ tarot-oracle spread list|create <name>
 - Test that both old and new CLI entry points function
 
 ## Phase 5: Code Quality & Testing Infrastructure
+
+- Status: Pending
 
 ### Task 5.1: Error Handling & Custom Exceptions
 **Description**: Implement comprehensive error handling with custom exception hierarchy
