@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tarot-oracle"
+version = "0.1.0"
+authors = [
+  { name="Jonathan Voss", email="k98kurz@gmail.com" },
+]
+description = "A comprehensive tarot divination system with AI-powered interpretation and semantic analysis"
+readme = "readme.md"
+requires-python = ">=3.10"
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Intended Audience :: Religion",
+  "License :: OSI Approved :: ISC License (ISCL)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Games/Entertainment",
+  "Topic :: Religion",
+  "Topic :: Software Development :: Libraries :: Python",
+]
+dependencies = [
+  "requests >= 2.25.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/k98kurz/tarot-oracle"
+"Repository" = "https://github.com/k98kurz/tarot-oracle"
+"Bug Tracker" = "https://github.com/k98kurz/tarot-oracle/issues"
+
+[project.optional-dependencies]
+gemini = [
+  "google-genai >= 0.3.0",
+]
+
+[project.scripts]
+tarot = "tarot_oracle.tarot:main"
+oracle = "tarot_oracle.oracle:main"
