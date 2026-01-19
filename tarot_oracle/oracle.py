@@ -24,6 +24,14 @@ from tarot_oracle.tarot import (
 # Import configuration
 from tarot_oracle.config import config
 from tarot_oracle.loaders import InvocationLoader
+from tarot_oracle.exceptions import (
+    ProviderError,
+    AuthenticationError,
+    NetworkError,
+    RateLimitError,
+    ConfigError,
+    InvocationError,
+)
 
 # Import Gemini SDK when available
 try:
@@ -58,9 +66,12 @@ and may the oracle speak with clarity and truth."""
             Invocation text
         """
         if name:
-            custom_invocation = self.loader.load_invocation(name)
-            if custom_invocation:
-                return custom_invocation
+            try:
+                custom_invocation = self.loader.load_invocation(name)
+                if custom_invocation:
+                    return custom_invocation
+            except Exception as e:
+                raise InvocationError(f"Failed to load invocation '{name}': {e}", invocation_name=name)
         # Fall back to default
         return self.get_hermes_thoth_prometheus_invocation()
 
@@ -149,27 +160,23 @@ class OpenRouterClient:
                     content = result["choices"][0]["message"]["content"]
                     return content.strip() if content else None
                 else:
-                    print(f"Error: Invalid response format from OpenRouter", file=sys.stderr)
-                    return None
+                    raise NetworkError("Invalid response format from OpenRouter", provider="openrouter")
             elif response.status_code == 401:
-                print(f"Error: Invalid OpenRouter API key", file=sys.stderr)
-                return None
+                raise AuthenticationError("Invalid OpenRouter API key", provider="openrouter")
             elif response.status_code == 429:
-                print(f"Error: OpenRouter API rate limit exceeded", file=sys.stderr)
-                return None
+                retry_after = response.headers.get('Retry-After')
+                raise RateLimitError("OpenRouter API rate limit exceeded", provider="openrouter", retry_after=int(retry_after) if retry_after else None)
             else:
-                print(f"Error: OpenRouter API returned status {response.status_code}: {response.text}", file=sys.stderr)
-                return None
+                raise NetworkError(f"OpenRouter API returned status {response.status_code}: {response.text}", provider="openrouter")
                 
         except requests.exceptions.Timeout:
-            print(f"Error: OpenRouter API request timed out after {timeout} seconds", file=sys.stderr)
-            return None
+            raise NetworkError(f"OpenRouter API request timed out after {timeout} seconds", provider="openrouter", timeout=timeout)
         except requests.exceptions.RequestException as e:
-            print(f"Error: OpenRouter API request failed: {e}", file=sys.stderr)
-            return None
+            raise NetworkError(f"OpenRouter API request failed: {e}", provider="openrouter")
+        except (AuthenticationError, NetworkError, RateLimitError):
+            raise
         except Exception as e:
-            print(f"Error: Unexpected error calling OpenRouter API: {e}", file=sys.stderr)
-            return None
+            raise ProviderError(f"Unexpected error calling OpenRouter API: {e}", provider="openrouter")
 
     def check_api_key(self) -> bool:
         """Check if API key is valid."""
@@ -323,7 +330,7 @@ class Oracle:
         if self.provider == "gemini":
             api_key = api_key or config.google_ai_api_key
             if not api_key:
-                raise ValueError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider")
+                raise AuthenticationError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider", provider="gemini")
             if genai is None:
                 raise ImportError("google-genai package not installed. Install with: pip install google-genai")
             self.client = GeminiClient(api_key, model or "gemini-3-flash")
@@ -332,7 +339,7 @@ class Oracle:
         elif self.provider == "openrouter":
             api_key = api_key or config.openrouter_api_key
             if not api_key:
-                raise ValueError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider")
+                raise AuthenticationError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider", provider="openrouter")
             self.client = OpenRouterClient(api_key, model or "z-ai/glm-4.5-air:free")
             self.default_model = model or "z-ai/glm-4.5-air:free"
 
@@ -341,7 +348,7 @@ class Oracle:
             self.client = OllamaClient(host)
             self.default_model = model or "mistral"
         else:
-            raise ValueError(f"Unsupported provider: {self.provider}")
+            raise ProviderError(f"Unsupported provider: {self.provider}", provider=self.provider)
 
     def get_client(self) -> GeminiClient | OpenRouterClient | OllamaClient:
         return self.client

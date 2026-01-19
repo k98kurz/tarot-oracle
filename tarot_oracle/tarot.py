@@ -13,6 +13,13 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 from tarot_oracle.config import config
 from tarot_oracle.loaders import SpreadLoader
+from tarot_oracle.exceptions import (
+    DeckLoadError,
+    SpreadError,
+    CardCodeError,
+    SemanticValidationError,
+    InvalidDeckStateError,
+)
 
 
 
@@ -437,20 +444,22 @@ class DeckLoader:
 
             # Basic validation
             if not isinstance(config, dict):
-                raise ValueError("Deck configuration must be a JSON object")
+                raise DeckLoadError("Deck configuration must be a JSON object", deck_path=path)
 
             # Validate required top-level fields
             if 'name' not in config:
-                raise ValueError("Deck configuration must include 'name' field")
+                raise DeckLoadError("Deck configuration must include 'name' field", deck_path=path)
 
             return config
 
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in deck file: {e}")
+            raise DeckLoadError(f"Invalid JSON in deck file: {e}", deck_path=path)
         except FileNotFoundError:
-            raise ValueError(f"Deck file not found: {path}")
+            raise DeckLoadError(f"Deck file not found: {path}", deck_path=path)
+        except DeckLoadError:
+            raise
         except Exception as e:
-            raise ValueError(f"Error loading deck file: {e}")
+            raise DeckLoadError(f"Error loading deck file: {e}", deck_path=path)
 
     def list_available_decks(self) -> list[dict[str, str]]:
         """Scan ~/.tarot-oracle/decks/ and return deck metadata."""
@@ -586,7 +595,7 @@ class Deck:
                 cards.append(card)
 
         if not cards:
-            raise ValueError("No valid cards found in deck configuration")
+            raise DeckLoadError("No valid cards found in deck configuration")
 
         return cards
 
@@ -647,7 +656,7 @@ class Deck:
     def draw_cards(self, count: int) -> list[Card]:
         """Draw specified number of cards from shuffled deck."""
         if not self.shuffled:
-            raise ValueError("Deck must be shuffled before drawing cards")
+            raise InvalidDeckStateError("Deck must be shuffled before drawing cards", deck_state="unshuffled")
         return self.shuffled[:count]
 
 
@@ -875,11 +884,11 @@ class SemanticAdapter:
             return  # Empty semantics always valid
 
         if len(self.layout) != len(self.semantics):
-            raise ValueError('dimensions of layout and semantics are incompatible')
+            raise SemanticValidationError('dimensions of layout and semantics are incompatible')
 
         for layout_row, semantic_row in zip(self.layout, self.semantics):
             if len(layout_row) != len(semantic_row):
-                raise ValueError('dimensions of layout and semantics are incompatible')
+                raise SemanticValidationError('dimensions of layout and semantics are incompatible')
 
     def _get_semantic_for_position(self, position: int) -> str|None:
         """Find semantic value for a given position in layout."""
@@ -1234,7 +1243,7 @@ def resolve_spread(spread_input: str) -> list[list[int]]:
     try:
         return ast.literal_eval(spread_input)
     except (ValueError, SyntaxError):
-        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
+        raise SpreadError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
 
 
 def resolve_spread_with_semantics(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|None]:
@@ -1260,7 +1269,7 @@ def resolve_spread_with_semantics(spread_input: str) -> tuple[list[list[int]], d
         layout = ast.literal_eval(spread_input)
         return layout, None
     except (ValueError, SyntaxError):
-        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
+        raise SpreadError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
 
 
 def resolve_card_codes(codes: str) -> list[Card]:
@@ -1302,7 +1311,7 @@ def resolve_card_codes(codes: str) -> list[Card]:
             resolved_card = Card(card.name, card.card_type, card.suit, card.value, card.keywords, card.reversed_keywords, is_reversed)
             resolved_cards.append(resolved_card)
         else:
-            raise ValueError(f"Invalid card code: '{code}'. Valid codes include major arcana (I, II, etc.) and minor arcana (W3, CQ, SA, PK, etc.)")
+            raise CardCodeError(f"Invalid card code: '{code}'. Valid codes include major arcana (I, II, etc.) and minor arcana (W3, CQ, SA, PK, etc.)", card_code=code)
 
     return resolved_cards
 
