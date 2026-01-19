@@ -100,42 +100,50 @@ class Config:
     @property
     def provider(self) -> str:
         """Get the AI provider."""
-        return self.get("provider", "gemini")
+        result = self.get("provider", "gemini")
+        return str(result) if result is not None else "gemini"
 
     @property
     def google_ai_api_key(self) -> str | None:
         """Get the Google AI API key."""
-        return self.get("google_ai_api_key")
+        result = self.get("google_ai_api_key")
+        return result if result is not None else None
 
     @property
     def openrouter_api_key(self) -> str | None:
         """Get the OpenRouter API key."""
-        return self.get("openrouter_api_key")
+        result = self.get("openrouter_api_key")
+        return result if result is not None else None
 
     @property
     def ollama_host(self) -> str:
         """Get the Ollama host."""
-        return self.get("ollama_host", "localhost:11434")
+        result = self.get("ollama_host", "localhost:11434")
+        return str(result) if result is not None else "localhost:11434"
 
     @property
     def autosave_sessions(self) -> bool:
         """Get whether to autosave sessions."""
-        return self.get("autosave_sessions", True)
+        result = self.get("autosave_sessions", True)
+        return bool(result) if result is not None else True
 
     @property
     def autosave_location(self) -> str:
         """Get the autosave location."""
-        return self.get("autosave_location", str(Path.home() / "oracles"))
+        result = self.get("autosave_location", str(Path.home() / "oracles"))
+        return str(result) if result is not None else str(Path.home() / "oracles")
 
     @property
     def default_spread(self) -> str:
         """Get the default spread."""
-        return self.get("default_spread", "celtic_cross")
+        result = self.get("default_spread", "celtic_cross")
+        return str(result) if result is not None else "celtic_cross"
 
     @property
     def max_file_size(self) -> int:
         """Get the maximum file size."""
-        return self.get("max_file_size", 1024 * 1024)
+        result = self.get("max_file_size", 1024 * 1024)
+        return int(result) if result is not None else 1024 * 1024
 
 
 # Global configuration instance

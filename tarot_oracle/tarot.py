@@ -10,7 +10,8 @@ import ast
 import json
 import os
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Any, NoReturn, cast
+
 
 
 # Comprehensive card keyword dictionaries (synthesized from Rider-Waite, Golden Dawn, Thoth traditions)
@@ -158,7 +159,7 @@ class DeckLoader:
     """Handles loading and management of tarot deck configurations."""
 
     @staticmethod
-    def resolve_deck_path(filename: str) -> Optional[str]:
+    def resolve_deck_path(filename: str) -> str | None:
         """Resolve deck filename using search order with security validation:
         1. ./{filename}
         2. ./{filename}.json
@@ -189,7 +190,7 @@ class DeckLoader:
         return None
 
     @staticmethod
-    def load_deck_config(path: str) -> Dict:
+    def load_deck_config(path: str) -> dict:
         """Load and validate JSON deck configuration."""
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -213,7 +214,7 @@ class DeckLoader:
             raise ValueError(f"Error loading deck file: {e}")
 
     @staticmethod
-    def list_available_decks() -> List[Dict[str, str]]:
+    def list_available_decks() -> list[dict[str, str]]:
         """Scan ~/.tarot/decks/ and return deck metadata."""
         decks_dir = Path.home() / ".tarot" / "decks"
 
@@ -278,7 +279,7 @@ class Card:
 class DeterministicRNG:
     """Simple linear congruential generator for deterministic random numbers."""
 
-    def __init__(self, seed: int):
+    def __init__(self, seed: int) -> None:
         self.state = seed
 
     def next_int(self, max_value: int) -> int:
@@ -288,9 +289,9 @@ class DeterministicRNG:
 
 
 class Deck:
-    """Tarot deck that can load from built-in or custom configurations."""
+    """Tarot deck with card loading and shuffling functionality."""
 
-    def __init__(self, deck_path: Optional[str] = None):
+    def __init__(self, deck_path: str | None = None) -> None:
         self.cards = []
         self.shuffled = []
 
@@ -420,18 +421,16 @@ class SpreadRenderer:
         return f"{card.get_notation()}"  # Use enhanced notation with reversal support
 
     @staticmethod
-    def render_spread(cards, spread_layout):
+    def render_spread(cards: list[Card], spread_layout: list[list[int]]) -> str:
         """Render the complete spread with simple notation."""
-        # Convert to explicit type for matrix detection
-        layout_str = str(spread_layout)
-        is_matrix = layout_str.startswith('[') and layout_str.count('[') > 1
-
+        # Check if this is a matrix layout (more than one row)
+        is_matrix = len(spread_layout) > 1
+        
         if is_matrix:
             # Handle as matrix
-            matrix_layout = spread_layout  # type: ignore
             flat_positions = []
-            for row in matrix_layout:  # type: ignore
-                for pos in row:  # type: ignore
+            for row in spread_layout:
+                for pos in row:
                     flat_positions.append(pos)
 
             unique_positions = sorted(set(pos for pos in flat_positions if pos > 0))
@@ -441,9 +440,9 @@ class SpreadRenderer:
                     position_to_card[position] = cards[i]
 
             rows = []
-            for row in matrix_layout:  # type: ignore
+            for row in spread_layout:
                 row_strings = []
-                for position in row:  # type: ignore
+                for position in row:
                     if position == 0:
                         row_strings.append(" " * 7)  # 7 spaces for empty position
                     else:
@@ -451,8 +450,8 @@ class SpreadRenderer:
                 rows.append((" " * 3).join(row_strings))  # 3 spaces between cards
             return "\n\n".join(rows)  # Single blank line between rows
         else:
-            # Handle as linear
-            linear_layout = spread_layout  # type: ignore
+            # Handle as linear - extract the single row
+            linear_layout = spread_layout[0] if spread_layout else []
             unique_positions = sorted(set(pos for pos in linear_layout if pos > 0))
             position_to_card = {}
             for i, position in enumerate(unique_positions):
@@ -460,7 +459,7 @@ class SpreadRenderer:
                     position_to_card[position] = cards[i]
 
             card_strings = []
-            for position in linear_layout:  # type: ignore
+            for position in linear_layout:
                 if position == 0:
                     card_strings.append("        ")  # 8 spaces for empty position
                 else:
@@ -469,7 +468,7 @@ class SpreadRenderer:
             return " ".join(card_strings)  # Single space between cards
 
     @staticmethod
-    def render_legend(cards, include_keywords: bool = False) -> str:
+    def render_legend(cards: list[Card], include_keywords: bool = False) -> str:
         """Render the legend for drawn cards in drawing order."""
         if not cards:
             return ""
@@ -490,16 +489,15 @@ class SpreadRenderer:
         return "\n".join(legend_lines)
 
     @staticmethod
-    def render_spread_json(cards: list[Card], spread_layout) -> list[list[str]]:
+    def render_spread_json(cards: list[Card], spread_layout: list[list[int]]) -> list[list[str]]:
         """Render spread as JSON matrix mirroring ASCII format."""
-        layout_str = str(spread_layout)
-        is_matrix = layout_str.startswith('[') and layout_str.count('[') > 1
+        # Check if this is a matrix layout (more than one row)
+        is_matrix = len(spread_layout) > 1
 
         if is_matrix:
             # Handle as matrix - return 2D array
-            matrix_layout = spread_layout
             flat_positions = []
-            for row in matrix_layout:
+            for row in spread_layout:
                 for pos in row:
                     flat_positions.append(pos)
 
@@ -510,18 +508,18 @@ class SpreadRenderer:
                     position_to_card[position] = cards[i]
 
             rows = []
-            for row in matrix_layout:
+            for row in spread_layout:
                 row_strings = []
                 for position in row:
                     if position == 0:
-                        row_strings.append("    ")  # 7 spaces for empty position
+                        row_strings.append("    ")  # 4 spaces for empty position
                     else:
                         row_strings.append(position_to_card[position].get_notation())
                 rows.append(row_strings)
             return rows
         else:
             # Handle as linear - return single row array
-            linear_layout = spread_layout
+            linear_layout = spread_layout[0] if spread_layout else []
             unique_positions = sorted(set(pos for pos in linear_layout if pos > 0))
             position_to_card = {}
             for i, position in enumerate(unique_positions):
@@ -538,7 +536,7 @@ class SpreadRenderer:
             return [card_strings]  # Return as single row for consistency
 
     @staticmethod
-    def render_legend_json(cards: list[Card], include_keywords: bool = True) -> list[dict]:
+    def render_legend_json(cards: list[Card], include_keywords: bool = True) -> list[dict[str, Any]]:
         """Render legend as structured list of card dictionaries."""
         if not cards:
             return []
@@ -565,10 +563,10 @@ class SpreadRenderer:
         return legend_data
 
     @staticmethod
-    def render_json(cards: list[Card], spread_layout, include_legend: bool = True) -> dict:
+    def render_json(cards: list[Card], spread_layout: list[list[int]], include_legend: bool = True) -> dict[str, Any]:
         """Render complete reading as JSON structure."""
         matrix = SpreadRenderer.render_spread_json(cards, spread_layout)
-        result = {"spread": matrix}
+        result: dict[str, Any] = {"spread": matrix}
 
         if include_legend:
             result["legend"] = SpreadRenderer.render_legend_json(cards, include_keywords=True)
@@ -584,7 +582,7 @@ class SpreadRenderer:
         return adapter.render_semantic_legend(include_keywords)
 
     @staticmethod
-    def render_descriptions(cards) -> str:
+    def render_descriptions(cards: list[Card]) -> str:
         """Render card descriptions for drawn cards."""
         if not cards:
             return ""
@@ -599,13 +597,13 @@ class SpreadRenderer:
 class SemanticAdapter:
     """Maps cards to semantic meanings based on spread position."""
 
-    def __init__(self, layout: list[list[int]], cards: list[Card], semantics: list[list[str]]|None = None):
+    def __init__(self, layout: list[list[int]], cards: list[Card], semantics: list[list[str]]|None = None) -> None:
         self.layout = layout
         self.cards = cards
         self.semantics = semantics or []
         self._validate_dimensions()
 
-    def _validate_dimensions(self):
+    def _validate_dimensions(self) -> None:
         """Validate layout and semantics have compatible dimensions."""
         if not self.semantics:
             return  # Empty semantics always valid
@@ -717,7 +715,7 @@ class SemanticAdapter:
 class TarotDivination:
     """Main orchestrator for tarot divination."""
 
-    def __init__(self, deck_path: Optional[str] = None):
+    def __init__(self, deck_path: str | None = None) -> None:
         self.deck = Deck(deck_path)
 
     def create_seed(self, timestamp: str, question: str, invocation: str|None = None, random_bytes: int = 0) -> int:
@@ -731,14 +729,25 @@ class TarotDivination:
 
         return int.from_bytes(sha256(seed_data.encode()).digest(), 'little')
 
-    def _normalize_spread_layout(self, spread_layout) -> tuple[list[list[int]], int]:
+    def _normalize_spread_layout(self, spread_layout: list[list[int]] | list[int]) -> tuple[list[list[int]], int]:
         """Normalize spread layout to matrix format and return (layout, card_count)."""
-        if isinstance(spread_layout[0], int):
-            spread_layout = [spread_layout]
-        needed_cards = len([pos for row in spread_layout for pos in row if pos > 0])
-        return spread_layout, needed_cards
+        # Handle both list[int] and list[list[int]] cases
+        if not spread_layout:
+            normalized_layout: list[list[int]] = []
+        elif isinstance(spread_layout[0], int):
+            # This is a linear layout like [1, 2, 3], convert to [[1, 2, 3]]
+            # Type assertion: we know this is list[int] due to isinstance check
+            linear_layout = cast(list[int], spread_layout)
+            normalized_layout = [linear_layout]
+        else:
+            # Already in matrix format
+            # Type assertion: we know this is list[list[int]] due to isinstance check
+            normalized_layout = cast(list[list[int]], spread_layout)
+        
+        needed_cards = len([pos for row in normalized_layout for pos in row if pos > 0])
+        return normalized_layout, needed_cards
 
-    def draw_cards_for_reading(self, seed: int, spread_layout, allow_reversed: bool = False) -> list[Card]:
+    def draw_cards_for_reading(self, seed: int, spread_layout: list[list[int]] | list[int], allow_reversed: bool = False) -> list[Card]:
         """Draw cards for reading using explicit seed - pure deterministic function."""
         rng = DeterministicRNG(seed)
         self.deck.shuffle_and_assign_reversals(rng, allow_reversed)
@@ -746,16 +755,17 @@ class TarotDivination:
         _, needed_cards = self._normalize_spread_layout(spread_layout)
         return self.deck.draw_cards(needed_cards)
 
-    def perform_reading_json(self, question: str, spread_layout, invocation: str|None = None,
-                            random_bytes: int = 0, allow_reversed: bool = False, include_legend: bool = True) -> dict:
+    def perform_reading_json(self, question: str, spread_layout: list[list[int]] | list[int], invocation: str|None = None,
+                            random_bytes: int = 0, allow_reversed: bool = False, include_legend: bool = True) -> dict[str, Any]:
         """Perform tarot reading and return JSON-serializable data."""
         # Create seed and draw cards (reuse existing logic)
         timestamp = str(int(time()))
         seed = self.create_seed(timestamp, question, invocation, random_bytes)
         drawn_cards = self.draw_cards_for_reading(seed, spread_layout, allow_reversed)
 
-        # Generate JSON structure
-        json_data = SpreadRenderer.render_json(drawn_cards, spread_layout, include_legend)
+        # Normalize layout and generate JSON structure
+        normalized_layout, _ = self._normalize_spread_layout(spread_layout)
+        json_data = SpreadRenderer.render_json(drawn_cards, normalized_layout, include_legend)
 
         # Add metadata
         json_data.update({
@@ -790,7 +800,7 @@ class TarotDivination:
         return spread_display, legend_display
 
 
-def resolve_spread(spread_input: str):
+def resolve_spread(spread_input: str) -> list[list[int]]:
     """Resolve spread from alias or custom matrix."""
     if spread_input in SPREADS:
         return SPREADS[spread_input]
@@ -883,7 +893,7 @@ understanding through the ancient art of tarot."""[1:]
         return None
 
 
-def main(args=None):
+def main(args=None) -> int:
     """Main CLI interface."""
     parser = create_parser()
 
