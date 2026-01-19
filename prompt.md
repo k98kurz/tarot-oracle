@@ -1,1 +1,0 @@
-Prepare this tarot-oracle project for future upgrades. Remember not to test in a way that calls Ollama or Gemini.
