@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, NoReturn, cast
+from tarot_oracle.config import config
 
 
 
@@ -158,14 +159,15 @@ SEMANTICS = {
 class DeckLoader:
     """Handles loading and management of tarot deck configurations."""
 
-    @staticmethod
-    def resolve_deck_path(filename: str) -> str | None:
+    def resolve_deck_path(self, filename: str) -> str | None:
         """Resolve deck filename using search order with security validation:
         1. ./{filename}
         2. ./{filename}.json
         3. ~/.tarot-oracle/decks/{filename}
         4. ~/.tarot-oracle/decks/{filename}.json
         """
+        from tarot_oracle.config import config
+        
         # Sanitize filename to prevent path traversal
         import re
         safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
@@ -176,8 +178,8 @@ class DeckLoader:
         search_paths = [
             Path.cwd() / safe_filename,
             Path.cwd() / f"{safe_filename}.json",
-            Path.home() / ".tarot-oracle" / "decks" / safe_filename,
-            Path.home() / ".tarot-oracle" / "decks" / f"{safe_filename}.json"
+            config.decks_dir / safe_filename,
+            config.decks_dir / f"{safe_filename}.json"
         ]
 
         for path in search_paths:
@@ -185,7 +187,7 @@ class DeckLoader:
                 resolved = path.resolve()
                 # Ensure path is within expected directories
                 if (resolved.is_relative_to(Path.cwd()) or 
-                    resolved.is_relative_to(Path.home() / ".tarot-oracle")):
+                    resolved.is_relative_to(config.home_dir)):
                     return str(resolved)
         return None
 
@@ -213,10 +215,10 @@ class DeckLoader:
         except Exception as e:
             raise ValueError(f"Error loading deck file: {e}")
 
-    @staticmethod
-    def list_available_decks() -> list[dict[str, str]]:
-        """Scan ~/.tarot/decks/ and return deck metadata."""
-        decks_dir = Path.home() / ".tarot" / "decks"
+    def list_available_decks(self) -> list[dict[str, str]]:
+        """Scan ~/.tarot-oracle/decks/ and return deck metadata."""
+        from tarot_oracle.config import config
+        decks_dir = config.decks_dir
 
         if not decks_dir.exists() or not decks_dir.is_dir():
             return []
@@ -904,9 +906,10 @@ def main(args=None) -> int:
 
     # Handle list-decks mode
     if args.list_decks:
-        decks = DeckLoader.list_available_decks()
+        deck_loader = DeckLoader()
+        decks = deck_loader.list_available_decks()
         if not decks:
-            print("No deck configurations found in ~/.tarot/decks/")
+            print(f"No deck configurations found in {config.decks_dir}/")
             return 0
 
         print("Available decks:")
@@ -939,13 +942,14 @@ def main(args=None) -> int:
     # Resolve deck path if specified
     deck_path = None
     if args.deck:
-        deck_path = DeckLoader.resolve_deck_path(args.deck)
+        deck_loader = DeckLoader()
+        deck_path = deck_loader.resolve_deck_path(args.deck)
         if not deck_path:
             print(f"Error: Deck file '{args.deck}' not found. Searched:")
             print(f"  ./{args.deck}")
             print(f"  ./{args.deck}.json")
-            print(f"  ~/.tarot/decks/{args.deck}")
-            print(f"  ~/.tarot/decks/{args.deck}.json")
+            print(f"  {config.decks_dir}/{args.deck}")
+            print(f"  {config.decks_dir}/{args.deck}.json")
             return 1
 
     # Validate that question is provided for reading mode

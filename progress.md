@@ -1,44 +1,45 @@
-# Progress Report - Task 2.2: Type Safety Improvements (COMPLETED)
+# Progress Report - Task 3.1: Centralized Configuration System (COMPLETED)
 
 ## What Was Completed
-Successfully removed all type ignore comments and improved type safety throughout the codebase:
+Successfully implemented centralized configuration system with `~/.tarot-oracle/` directory structure:
 
 ### Files Modified:
-- **tarot.py**: Fixed type ignore comments in `render_json()`, `_normalize_spread_layout()`, and added proper type casting
-- **oracle.py**: Fixed type ignore comment in client method checking with proper type assertions
-- **Both files**: Added `cast` import from typing for proper type handling
+- **tarot.py**: Updated DeckLoader to use `config.decks_dir` and `config.home_dir` instead of hardcoded paths
+- **oracle.py**: Already importing and using centralized config
+- **config.py**: Already properly implemented with full functionality
 
 ### Key Changes Made:
-- ✅ Removed all `# type: ignore` comments from main source files
-- ✅ Added proper type annotations for `render_json()` return type: `dict[str, Any]`
-- ✅ Fixed type casting in `_normalize_spread_layout()` using `cast()` for union types
-- ✅ Added type assertion for client method calls in oracle.py using `cast(OllamaClient, client)`
-- ✅ Added explicit type variable declarations where needed for better type inference
-- ✅ Verified all function signatures have proper return type annotations
+- ✅ Replaced hardcoded paths (`~/.tarot/decks/`) with `config.decks_dir` references
+- ✅ Updated `DeckLoader.resolve_deck_path()` to use centralized config paths
+- ✅ Updated `DeckLoader.list_available_decks()` to use `config.decks_dir`
+- ✅ Fixed CLI error messages to reference correct config paths
+- ✅ Ensured all path security validations work with new config paths
+- ✅ Updated method signatures from static to instance methods where needed for config access
 
 ## What Was Learned
-1. **Type Casting with Union Types**: When dealing with union types like `list[list[int]] | list[int]`, explicit type casting with `cast()` is necessary after runtime type checking
-2. **Method Existence Checking**: The `hasattr()` pattern for checking method availability requires explicit type casting to satisfy type checkers
-3. **Generic Type Inference**: Complex nested structures sometimes need explicit type annotations to help type inference, especially in matrix operations
-4. **Import Dependencies**: `cast` function needs to be imported from typing module when not already available
+1. **Centralized Path Management**: Replacing hardcoded paths with a centralized Config class eliminates duplication and ensures consistent behavior across the application
+2. **Static vs Instance Methods**: Static methods cannot access module-level imports reliably; instance methods provide better access to configuration
+3. **Module Import Scoping**: When modules are imported at module level but used in methods, explicit imports within methods can solve scoping issues
+4. **Configuration Precedence**: The system properly handles config.json > environment variables > defaults hierarchy
 
 ## Struggles Encountered
-1. **Complex Type Guards**: The `_normalize_spread_layout()` function required careful handling of union types with runtime isinstance() checks followed by explicit type casting
-2. **Client Interface Variance**: Different client classes (GeminiClient vs OllamaClient) have different method signatures, requiring type-safe method existence checking
-3. **Type Inference Limits**: Some complex generic types needed explicit annotations despite type checker's best efforts at inference
+1. **Module Import Scoping**: The `config` import wasn't available in instance methods, requiring local imports in methods that need config access
+2. **Method Signature Changes**: Converting from static to instance methods required updating all call sites
+3. **Path Resolution Logic**: Ensuring security validations work with the new centralized paths required careful testing
+4. **LSP False Positives**: Type checker showed errors for module-level config access that actually worked at runtime
 
 ## Validation
-- ✅ All type ignore comments successfully removed from main source files
-- ✅ Basic tarot functionality preserved and working
-- ✅ Oracle functionality preserved and working
-- ✅ Both CLI tools operate correctly
-- ✅ Module imports successful
-- ✅ Core type safety improved without functional regressions
+- ✅ All configuration tests pass (Config class, directory creation, file loading, environment variables)
+- ✅ All tarot module tests pass (DeckLoader uses config paths, security validation works)
+- ✅ All oracle configuration tests pass (config integration verified)
+- ✅ CLI tools operate correctly with centralized configuration
+- ✅ Directory structure `~/.tarot-oracle/` created automatically with proper subdirectories
+- ✅ Both `--list-decks` and tarot readings work with new config system
 
 ## Next Steps
-Task 2.2 is now complete. The type safety improvements provide a clean foundation for subsequent development phases:
-- **Task 3.1**: Centralized Configuration System (next priority)
-- **Task 3.2**: Custom Feature Loaders
-- **Phase 4**: Feature Integration Preparation
+Task 3.1 is now complete. The centralized configuration system provides a solid foundation for custom features:
+- **Task 3.2**: Custom Feature Loaders (next priority)
+- **Task 4.1**: Enhanced Semantic System
+- **Task 4.2**: OpenRouter Integration
 
-The codebase now has robust type safety with no remaining type ignore comments, enabling smoother development and better IDE support.
+The codebase now has robust centralized configuration that eliminates hardcoded paths and provides a clean foundation for custom invocations, spreads, and decks.

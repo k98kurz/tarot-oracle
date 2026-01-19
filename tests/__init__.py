@@ -1,0 +1,1 @@
+"""Test configuration management for Tarot Oracle."""

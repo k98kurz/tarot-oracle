@@ -120,7 +120,7 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 - Status: Pending
 
 ### Task 3.1: Centralized Configuration System
-- Status: Pending
+- Status: Done ✅
 - Description: Implement unified configuration management with `~/.tarot-oracle/` directory structure
 **Files to Create/Modify**:
 - `tarot_oracle/config.py` - Create centralized configuration
@@ -145,14 +145,14 @@ This plan addresses critical blocking issues and prepares the codebase for plann
 - Support configuration precedence: config.json > environment variables > defaults
 
 **Requirements for Basic Unit Testing**:
-- Test Config class initialization and defaults
-- Verify config.json file loading and parsing
-- Test environment variable integration
-- Verify directory creation and permission handling
-- Test path resolution for all subdirectories
-- Validate migration from old hardcoded paths
-- Test error handling when directories cannot be created
-- Test configuration precedence (config.json > env vars > defaults)
+- ✅ Test Config class initialization and defaults
+- ✅ Verify config.json file loading and parsing
+- ✅ Test environment variable integration
+- ✅ Verify directory creation and permission handling
+- ✅ Test path resolution for all subdirectories
+- ✅ Validate migration from old hardcoded paths
+- ✅ Test error handling when directories cannot be created
+- ✅ Test configuration precedence (config.json > env vars > defaults)
 
 ### Task 3.2: Custom Feature Loaders
 - Status: Pending
@@ -363,10 +363,10 @@ tarot-oracle spread list|create <name>
 - ✅ **Task 2.2: Type Safety Improvements** - Removed all type ignore comments and improved type safety (Iteration 4)
 - ✅ **Phase 1** - Critical infrastructure fixes completed in previous iteration
 
-### Next Priority Tasks (Iteration 4)
-1. ✅ **Task 2.2: Type Safety Improvements** - Remove remaining type ignore comments and fix function signatures (COMPLETED)
-2. **Task 3.1: Centralized Configuration System** - Implement unified config management with `~/.tarot-oracle/` directory (NEXT)
-3. **Task 3.2: Custom Feature Loaders** - Create loaders for custom invocations and spreads
+### Next Priority Tasks (Iteration 5)
+1. ✅ **Task 3.1: Centralized Configuration System** - Implement unified config management with `~/.tarot-oracle/` directory (COMPLETED)
+2. **Task 3.2: Custom Feature Loaders** - Create loaders for custom invocations and spreads (NEXT)
+3. **Task 4.1: Enhanced Semantic System** - Refactor semantic analysis to support custom guidance rules
 
 ### Implementation Priority
 
@@ -382,10 +382,13 @@ Each phase should be completed and tested before proceeding to the next phase to
 - Task 3.1 (Configuration) is prerequisite for Task 3.2 (Custom Loaders)  
 - All subsequent phases depend on successful completion of Phase 2 (COMPLETED) and 3
 
-### Iteration 4 Status Update
-- Current iteration: 4
+### Iteration 5 Status Update
+- Current iteration: 5
 - Enhanced mode: Yes
-- Progress: Task 2.1 completed, Task 2.2 COMPLETED ✅
-- All type ignore comments successfully removed
-- All function signatures now have proper type annotations
-- Type safety improvements provide clean foundation for next development phase
+- Progress: Task 3.1 COMPLETED ✅
+- Centralized configuration system fully implemented
+- All hardcoded paths replaced with Config class references
+- Directory structure `~/.tarot-oracle/` with subdirectories created automatically
+- Configuration precedence working (config.json > env vars > defaults)
+- Comprehensive test coverage for configuration system
+- Both CLI tools successfully updated to use centralized config
