@@ -6,15 +6,14 @@ build-backend = "setuptools.build_meta"
 name = "tarot-oracle"
 version = "0.1.0"
 description = "AI-powered tarot divination system with semantic analysis"
-readme = "README.md"
-license = {text = "MIT"}
+readme = "readme.md"
+license = "MIT"
 authors = [
     {name = "Tarot Oracle Contributors"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Religion",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -60,6 +59,10 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+
+[tool.setuptools.packages.find]
+include = ["tarot_oracle*"]
+exclude = ["test_env*"]
 
 [tool.black]
 line-length = 88

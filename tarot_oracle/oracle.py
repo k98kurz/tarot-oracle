@@ -4,7 +4,7 @@ import json
 import sys
 import os
 from argparse import ArgumentParser
-from typing import Optional, List, Dict, Any
+from typing import Any, cast
 import requests
 from datetime import datetime
 import re
@@ -62,14 +62,15 @@ class GeminiClient:
         self.client = genai.Client(api_key=api_key)
         self.model = model
 
-    def generate_response(self, prompt: str, model: str = None, timeout: int = 30) -> Optional[str]:
+    def generate_response(self, prompt: str, model: str | None = None, timeout: int = 30) -> str | None:
         """Generate response from Gemini model."""
         try:
             response = self.client.models.generate_content(
                 model=model or self.model,
                 contents=prompt
             )
-            return response.text.strip()
+            text = response.text
+            return text.strip() if text else None
         except Exception as e:
             print(f"Error generating response from Gemini: {e}", file=sys.stderr)
             return None
@@ -93,7 +94,7 @@ class OllamaClient:
     def __init__(self, host: str = "localhost:11434"):
         self.host = host
 
-    def generate_response(self, prompt: str, model: str = "mistral", timeout: int = 300) -> Optional[str]:
+    def generate_response(self, prompt: str, model: str = "mistral", timeout: int = 300) -> str | None:
         """Generate response from Ollama model."""
         url = f"http://{self.host}/api/generate"
 
@@ -129,7 +130,7 @@ class OllamaClient:
             return False
 
 
-def extract_card_codes_for_filename(legend_display: str) -> List[str]:
+def extract_card_codes_for_filename(legend_display: str) -> list[str]:
     """Extract card codes from legend_display for filename.
     Finds bracketed content like [WP-X-CA] and returns list.
     """
@@ -140,7 +141,7 @@ def extract_card_codes_for_filename(legend_display: str) -> List[str]:
     return codes
 
 
-def generate_session_filename(card_codes: List[str]) -> str:
+def generate_session_filename(card_codes: list[str]) -> str:
     """Generate filename with timestamp and card codes."""
     import re
     timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
@@ -160,7 +161,7 @@ def ensure_autosave_directory(save_location: str) -> bool:
         return False
 
 
-def save_oracle_session(question: str, spread_type: str, result: dict, save_location: str) -> bool:
+def save_oracle_session(question: str, spread_type: str, result: dict[str, Any], save_location: str) -> bool:
     """Save oracle session by mirroring terminal output exactly."""
     if not ensure_autosave_directory(save_location):
         return False
@@ -217,7 +218,7 @@ def save_oracle_session(question: str, spread_type: str, result: dict, save_loca
 class Oracle:
     """Main oracle class combining tarot reading with LLM interpretation."""
 
-    def __init__(self, provider: str = None, model: str = None, api_key: str = None, ollama_host: str = None):
+    def __init__(self, provider: str | None = None, model: str | None = None, api_key: str | None = None, ollama_host: str | None = None):
         self.tarot = TarotDivination()
 
         # Provider selection
@@ -229,7 +230,7 @@ class Oracle:
                 raise ValueError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider")
             if genai is None:
                 raise ImportError("google-genai package not installed. Install with: pip install google-genai")
-            self.client = GeminiClient(api_key, model)
+            self.client = GeminiClient(api_key, model or "gemini-3-flash")
             self.default_model = model or "gemini-3-flash"
 
         elif self.provider == "ollama":
@@ -239,10 +240,10 @@ class Oracle:
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
-    def get_client(self):
+    def get_client(self) -> GeminiClient | OllamaClient:
         return self.client
 
-    def get_default_model(self):
+    def get_default_model(self) -> str:
         return self.default_model
 
 
@@ -278,7 +279,7 @@ Pay special attention to the positional meanings and how they affect each card's
 
         return prompt
 
-    def get_interpretation(self, spread_display: str, legend_display: str, invocation: str, question: str, model: Optional[str] = None, spread_type: str = "unknown") -> Optional[str]:
+    def get_interpretation(self, spread_display: str, legend_display: str, invocation: str, question: str, model: str | None = None, spread_type: str = "unknown") -> str | None:
         """Get LLM interpretation of the reading."""
         if model is None:
             model = self.default_model
@@ -295,7 +296,7 @@ Pay special attention to the positional meanings and how they affect each card's
             return None
 
     def perform_divinatory_reading(self, question: str, spread_type: str = "3-card",
-                                        interpret: bool = False, model: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+                                        interpret: bool = False, model: str | None = None, **kwargs) -> dict[str, Any]:
         """Perform complete divinatory reading with optional interpretation."""
         # Get invocation text (always used for oracle)
         # Custom invocation will be passed via kwargs, otherwise use default
@@ -395,7 +396,7 @@ def print_cards(spread_display: str, legend_display: str, question: str, spread_
     print()
 
 
-def print_interpretation(interpretation: Optional[str]):
+def print_interpretation(interpretation: str | None):
     """Print the interpretation or fallback message."""
     print("# === Interpretation ===")
     if interpretation:
@@ -424,9 +425,14 @@ def main(args=None):
     # Check availability if interpretation requested
     if args.interpret:
         if args.provider == "ollama":
-            model_available = oracle.get_client().check_model_available(args.model or "mistral")
-            if not model_available:
-                print(f"Warning: Model '{args.model or 'mistral'}' not found in Ollama. Interpretation may not be available.")
+            client = oracle.get_client()
+            # We know this is OllamaClient when provider is "ollama"
+            if hasattr(client, 'check_model_available'):
+                # Type assertion: we know this method exists due to hasattr check
+                ollama_client = cast(OllamaClient, client)
+                model_available = ollama_client.check_model_available(args.model or "mistral")
+                if not model_available:
+                    print(f"Warning: Model '{args.model or 'mistral'}' not found in Ollama. Interpretation may not be available.")
 
     # Perform the reading
     result = oracle.perform_divinatory_reading(

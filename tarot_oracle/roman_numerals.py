@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import sys
-from argparse import ArgumentParser
-from typing import Dict, List, Tuple
+from argparse import ArgumentParser, Namespace
+
 
 
 class RomanConverter:
     """Converts positive integers to Roman numerals using standard subtractive notation."""
 
     # Value-symbol pairs ordered from largest to smallest for greedy algorithm
-    ROMAN_NUMERALS: List[Tuple[int, str]] = [
+    ROMAN_NUMERALS: list[tuple[int, str]] = [
         (1000, 'M'),
         (900, 'CM'),
         (500, 'D'),
@@ -82,7 +82,7 @@ def validate_range(start: int, stop: int) -> None:
         raise ValueError("Start value must be less than or equal to stop value")
 
 
-def generate_roman_range(start: int, stop: int) -> List[Tuple[int, str]]:
+def generate_roman_range(start: int, stop: int) -> list[tuple[int, str]]:
     """Generate Roman numeral conversions for a range of numbers."""
     conversions = []
     for number in range(start, stop + 1):
@@ -91,26 +91,26 @@ def generate_roman_range(start: int, stop: int) -> List[Tuple[int, str]]:
     return conversions
 
 
-def format_output(conversions: List[Tuple[int, str]]) -> str:
+def format_output(conversions: list[tuple[int, str]]) -> str:
     """Format conversions as tab-separated 'number:roman' pairs."""
     return '\t'.join(f"{num}:{roman}" for num, roman in conversions)
 
 
-def main(args=None):
+def main(args: list[str] | None = None) -> int:
     """Main CLI interface for Roman numeral generator."""
     parser = create_parser()
 
     if args is None:
-        args = parser.parse_args()
+        parsed_args = parser.parse_args()
     else:
-        args = parser.parse_args(args)
+        parsed_args = parser.parse_args(args)
 
     try:
         # Validate input range
-        validate_range(args.start, args.stop)
+        validate_range(parsed_args.start, parsed_args.stop)
 
         # Generate conversions
-        conversions = generate_roman_range(args.start, args.stop)
+        conversions = generate_roman_range(parsed_args.start, parsed_args.stop)
 
         # Format and output
         output = format_output(conversions)
