@@ -23,6 +23,7 @@ from tarot_oracle.tarot import (
 
 # Import configuration
 from tarot_oracle.config import config
+from tarot_oracle.loaders import InvocationLoader
 
 # Import Gemini SDK when available
 try:
@@ -34,6 +35,10 @@ except ImportError:
 class InvocationManager:
     """Manages invocations for divinatory readings."""
 
+    def __init__(self) -> None:
+        """Initialize the invocation manager with loader."""
+        self.loader = InvocationLoader()
+
     @staticmethod
     def get_hermes_thoth_prometheus_invocation() -> str:
         """Returns the Hermes-Thoth and Prometheus dual invocation."""
@@ -42,6 +47,22 @@ and by the foresight of Prometheus, bringer of fire and divine insight,
 I seek understanding through the ancient art of tarot.
 May these cards reveal the patterns woven by fate and free will,
 and may the oracle speak with clarity and truth."""
+
+    def get_invocation(self, name: str | None) -> str:
+        """Get invocation by name or return default.
+        
+        Args:
+            name: Name of custom invocation, or None for default
+            
+        Returns:
+            Invocation text
+        """
+        if name:
+            custom_invocation = self.loader.load_invocation(name)
+            if custom_invocation:
+                return custom_invocation
+        # Fall back to default
+        return self.get_hermes_thoth_prometheus_invocation()
 
     @staticmethod
     def prepend_invocation(question: str, invocation_type: str = "hermes-thoth-prometheus") -> str:
@@ -220,6 +241,7 @@ class Oracle:
 
     def __init__(self, provider: str | None = None, model: str | None = None, api_key: str | None = None, ollama_host: str | None = None):
         self.tarot = TarotDivination()
+        self.invocation_manager = InvocationManager()
 
         # Provider selection
         self.provider = provider or config.provider
@@ -299,9 +321,16 @@ Pay special attention to the positional meanings and how they affect each card's
                                         interpret: bool = False, model: str | None = None, **kwargs) -> dict[str, Any]:
         """Perform complete divinatory reading with optional interpretation."""
         # Get invocation text (always used for oracle)
-        # Custom invocation will be passed via kwargs, otherwise use default
+        # Custom invocation can be passed via kwargs as either text or name
         custom_invocation = kwargs.get('invocation')
-        invocation = custom_invocation if custom_invocation else InvocationManager.get_hermes_thoth_prometheus_invocation()
+        invocation_name = kwargs.get('invocation_name')
+        
+        if invocation_name:
+            invocation = self.invocation_manager.get_invocation(invocation_name)
+        elif custom_invocation:
+            invocation = custom_invocation
+        else:
+            invocation = self.invocation_manager.get_hermes_thoth_prometheus_invocation()
 
         # Generate tarot reading using existing system
         try:

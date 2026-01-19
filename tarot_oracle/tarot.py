@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 from typing import Any, NoReturn, cast
 from tarot_oracle.config import config
+from tarot_oracle.loaders import SpreadLoader
 
 
 
@@ -803,14 +804,22 @@ class TarotDivination:
 
 
 def resolve_spread(spread_input: str) -> list[list[int]]:
-    """Resolve spread from alias or custom matrix."""
+    """Resolve spread from alias, custom file, or custom matrix."""
+    # Check built-in spreads first
     if spread_input in SPREADS:
         return SPREADS[spread_input]
-    else:
-        try:
-            return ast.literal_eval(spread_input)
-        except (ValueError, SyntaxError):
-            raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())} or custom matrix.")
+    
+    # Try to load custom spread
+    loader = SpreadLoader()
+    custom_spread = loader.load_spread(spread_input)
+    if custom_spread and 'layout' in custom_spread:
+        return custom_spread['layout']
+    
+    # Try to parse as custom matrix
+    try:
+        return ast.literal_eval(spread_input)
+    except (ValueError, SyntaxError):
+        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
 
 
 def resolve_card_codes(codes: str) -> list[Card]:
