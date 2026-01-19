@@ -14,6 +14,25 @@ from .tarot import (
 )
 from .oracle import Oracle
 from .config import Config
+from .exceptions import (
+    TarotOracleError,
+    TarotConfigurationError,
+    DeckLoadError,
+    SpreadError,
+    InvocationError,
+    ConfigError,
+    ProviderError,
+    AuthenticationError,
+    NetworkError,
+    RateLimitError,
+    ValidationError,
+    CardCodeError,
+    SemanticValidationError,
+    FileOperationError,
+    PathTraversalError,
+    StateError,
+    InvalidDeckStateError,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -29,4 +48,21 @@ __all__ = [
     "SemanticAdapter",
     "Oracle",
     "Config",
+    "TarotOracleError",
+    "TarotConfigurationError",
+    "DeckLoadError",
+    "SpreadError",
+    "InvocationError",
+    "ConfigError",
+    "ProviderError",
+    "AuthenticationError",
+    "NetworkError",
+    "RateLimitError",
+    "ValidationError",
+    "CardCodeError",
+    "SemanticValidationError",
+    "FileOperationError",
+    "PathTraversalError",
+    "StateError",
+    "InvalidDeckStateError",
 ]

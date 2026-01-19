@@ -6,6 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from tarot_oracle.config import config
+from tarot_oracle.exceptions import (
+    InvocationError,
+    SpreadError,
+    PathTraversalError,
+    ConfigError,
+)
 
 
 class InvocationLoader:
@@ -46,7 +52,7 @@ class InvocationLoader:
         for path in search_paths:
             if path.exists() and path.is_file():
                 resolved = path.resolve()
-                # Ensure path is within expected directories
+                # Ensure path is within expected directories to prevent path traversal
                 if (resolved.is_relative_to(Path.cwd()) or 
                     resolved.is_relative_to(config.home_dir)):
                     try:
@@ -54,6 +60,8 @@ class InvocationLoader:
                             return f.read().strip()
                     except (OSError, UnicodeDecodeError):
                         continue
+                else:
+                    raise PathTraversalError(f"Attempted to access file outside allowed directories: {path}", attempted_path=str(path))
         return None
 
     def list_invocations(self) -> list[dict[str, str]]:
@@ -120,15 +128,17 @@ class SpreadLoader:
         for path in search_paths:
             if path.exists() and path.is_file():
                 resolved = path.resolve()
-                # Ensure path is within expected directories
+                # Ensure path is within expected directories to prevent path traversal
                 if (resolved.is_relative_to(Path.cwd()) or 
                     resolved.is_relative_to(config.home_dir)):
                     try:
                         with open(resolved, 'r', encoding='utf-8') as f:
                             config_data = json.load(f)
                         return self._validate_spread_config(config_data, str(path))
-                    except (OSError, json.JSONDecodeError, ValueError):
+                    except (OSError, json.JSONDecodeError, SpreadError):
                         continue
+                else:
+                    raise PathTraversalError(f"Attempted to access file outside allowed directories: {path}", attempted_path=str(path))
         return None
 
     def _validate_spread_config(self, config: dict[str, Any], path: str) -> dict[str, Any]:
@@ -146,59 +156,59 @@ class SpreadLoader:
         """
         # Validate required fields
         if 'name' not in config:
-            raise ValueError(f"Spread configuration must include 'name' field: {path}")
+            raise SpreadError(f"Spread configuration must include 'name' field", spread_name=config.get('name', 'unknown'))
         
         if 'layout' not in config:
-            raise ValueError(f"Spread configuration must include 'layout' field: {path}")
+            raise SpreadError(f"Spread configuration must include 'layout' field", spread_name=config.get('name', 'unknown'))
         
         # Validate layout - support both matrix format and position dictionary format
         layout = config['layout']
         if not isinstance(layout, list):
-            raise ValueError(f"Spread 'layout' must be a list: {path}")
+            raise SpreadError(f"Spread 'layout' must be a list", spread_name=config.get('name', 'unknown'))
         
         # Check if this is a matrix layout (nested lists of integers)
         if layout and isinstance(layout[0], list):
             # Matrix layout format - validate that it contains integers or 0
             for i, row in enumerate(layout):
                 if not isinstance(row, list):
-                    raise ValueError(f"Layout row {i} must be a list: {path}")
+                    raise SpreadError(f"Layout row {i} must be a list", spread_name=config.get('name', 'unknown'))
                 for j, cell in enumerate(row):
                     if not isinstance(cell, int):
-                        raise ValueError(f"Layout cell [{i}][{j}] must be an integer: {path}")
+                        raise SpreadError(f"Layout cell [{i}][{j}] must be an integer", spread_name=config.get('name', 'unknown'))
         else:
             # Position dictionary format - traditional validation
             for i, position in enumerate(layout):
                 if not isinstance(position, dict):
-                    raise ValueError(f"Layout position {i} must be a dictionary: {path}")
+                    raise SpreadError(f"Layout position {i} must be a dictionary", spread_name=config.get('name', 'unknown'))
                 if 'position' not in position:
-                    raise ValueError(f"Layout position {i} must include 'position' field: {path}")
+                    raise SpreadError(f"Layout position {i} must include 'position' field", spread_name=config.get('name', 'unknown'))
 
         # Validate semantic groups if present
         if 'semantic_groups' in config:
             semantic_groups = config['semantic_groups']
             if not isinstance(semantic_groups, dict):
-                raise ValueError(f"semantic_groups must be a dictionary: {path}")
+                raise SpreadError(f"semantic_groups must be a dictionary", spread_name=config.get('name', 'unknown'))
 
         # Validate semantics matrix if present
         if 'semantics' in config:
             semantics = config['semantics']
             if not isinstance(semantics, list):
-                raise ValueError(f"semantics must be a list: {path}")
+                raise SpreadError(f"semantics must be a list", spread_name=config.get('name', 'unknown'))
             
             # Check if this is a matrix format (nested lists)
             if semantics and isinstance(semantics[0], list):
                 # Matrix format - validate that it contains strings or empty values
                 for i, row in enumerate(semantics):
                     if not isinstance(row, list):
-                        raise ValueError(f"Semantics row {i} must be a list: {path}")
+                        raise SpreadError(f"Semantics row {i} must be a list", spread_name=config.get('name', 'unknown'))
                     for j, cell in enumerate(row):
                         if cell is not None and not isinstance(cell, str):
-                            raise ValueError(f"Semantics cell [{i}][{j}] must be a string or null: {path}")
+                            raise SpreadError(f"Semantics cell [{i}][{j}] must be a string or null", spread_name=config.get('name', 'unknown'))
             else:
                 # Dictionary format - traditional validation
                 for i, semantic in enumerate(semantics):
                     if not isinstance(semantic, dict):
-                        raise ValueError(f"Semantics entry {i} must be a dictionary: {path}")
+                        raise SpreadError(f"Semantics entry {i} must be a dictionary", spread_name=config.get('name', 'unknown'))
 
         # Validate variable placeholders in semantics (only for matrix format)
         semantics = config.get('semantics', [])
@@ -231,9 +241,10 @@ class SpreadLoader:
                     matches = re.findall(pattern, cell)
                     for match in matches:
                         if match not in valid_variables:
-                            raise ValueError(
+                            raise SpreadError(
                                 f"Invalid variable placeholder '${{{match}}}' in semantics[{i}][{j}]. "
-                                f"Valid variables: {', '.join(sorted(valid_variables))}: {path}"
+                                f"Valid variables: {', '.join(sorted(valid_variables))}",
+                                spread_name=config.get('name', 'unknown')
                             )
 
     def _validate_variable_placeholders(self, semantics: list[dict], path: str) -> None:
@@ -260,9 +271,11 @@ class SpreadLoader:
                     matches = re.findall(pattern, value)
                     for match in matches:
                         if match not in valid_variables:
-                            raise ValueError(
+                            spread_name = config.get('name', 'unknown')
+                            raise SpreadError(
                                 f"Invalid variable placeholder '${{{match}}}' in semantics. "
-                                f"Valid variables: {', '.join(sorted(valid_variables))}: {path}"
+                                f"Valid variables: {', '.join(sorted(valid_variables))}",
+                                spread_name=spread_name
                             )
 
     def list_spreads(self) -> list[dict[str, str]]:
@@ -316,7 +329,7 @@ class SpreadLoader:
         safe_name = re.sub(r'[^a-zA-Z0-9._-]', '', name)
         safe_name = safe_name.lstrip('.-')
         if not safe_name:
-            raise ValueError("Invalid spread name")
+            raise SpreadError("Invalid spread name")
             
         file_path = config.spreads_dir / f"{safe_name}.json"
         
