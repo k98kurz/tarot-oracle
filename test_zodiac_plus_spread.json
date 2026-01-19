@@ -1,0 +1,117 @@
+{
+  "name": "Zodiac Plus",
+  "description": "Enhanced 13-card zodiac spread with additional spirit card and complex semantic associations",
+  "layout": [
+    [1, 2, 3, 4],
+    [5, 6, 7, 8],
+    [9, 10, 11, 12],
+    [0, 0, 13, 0]
+  ],
+  "semantics": [
+    ["${fire}", "${earth}", "${air}", "${water}"],
+    ["${fire}", "${earth}", "${air}", "${water}"],
+    ["${spirit}", "${spirit}", "${spirit}", "${spirit}"],
+    ["", "", "Core Issue/Spiritual Lesson", ""]
+  ],
+  "semantic_groups": {
+    "fire_triplicity": {
+      "description": "Aries, Leo, Sagittarius - Creative Action and Will",
+      "positions": [1, 5, 9]
+    },
+    "earth_triplicity": {
+      "description": "Taurus, Virgo, Capricorn - Manifestation and Stability",
+      "positions": [2, 6, 10]
+    },
+    "air_triplicity": {
+      "description": "Gemini, Libra, Aquarius - Communication and Ideas",
+      "positions": [3, 7, 11]
+    },
+    "water_triplicity": {
+      "description": "Cancer, Scorpio, Pisces - Emotion and Intuition",
+      "positions": [4, 8, 12]
+    },
+    "cardinal_cross": {
+      "description": "Cardinal signs - Initiative and Leadership",
+      "positions": [1, 4, 7, 10]
+    },
+    "fixed_cross": {
+      "description": "Fixed signs - Stability and Determination",
+      "positions": [2, 5, 8, 11]
+    },
+    "mutable_cross": {
+      "description": "Mutable signs - Adaptability and Change",
+      "positions": [3, 6, 9, 12]
+    },
+    "spirit_essence": {
+      "description": "Central spiritual guidance and soul lesson",
+      "positions": [13]
+    }
+  },
+  "guidance_rules": [
+    {
+      "conditions": {
+        "cards": [
+          {
+            "type": "in_group",
+            "group": "spirit_essence",
+            "cards": ["The World", "The Sun", "Star", "The Magician"]
+          }
+        ]
+      },
+      "guidance": "**Spiritual Mastery**: The ${spirit} card indicates alignment with higher purpose and divine guidance"
+    },
+    {
+      "conditions": {
+        "elemental_balance": {"fire": 2, "water": 2}
+      },
+      "guidance": "**Elemental Harmony**: Balance between ${fire} (action) and ${water} (emotion) creates powerful transformation"
+    },
+    {
+      "conditions": {
+        "card_type_count": {"card_type": "major", "min_count": 7}
+      },
+      "guidance": "**Karmic Gateway**: This reading represents a major life transition and soul-level learning"
+    },
+    {
+      "conditions": {
+        "cards": [
+          {
+            "type": "in_group",
+            "group": "cardinal_cross",
+            "cards": ["The Emperor", "The Chariot", "Justice", "The Tower"]
+          }
+        ]
+      },
+      "guidance": "**Leadership Calling**: Cardinal signs suggest it's time to take initiative and lead change"
+    },
+    {
+      "conditions": {
+        "elemental_balance": {"earth": 3}
+      },
+      "guidance": "**Material Manifestation**: Strong ${earth} influence focuses on practical outcomes and tangible results"
+    },
+    {
+      "conditions": {
+        "reversed_min": 4
+      },
+      "guidance": "**Inner Reflection**: Multiple reversed cards indicate the need for introspection before action"
+    },
+    {
+      "conditions": {
+        "cards": [
+          {
+            "type": "anywhere",
+            "cards": ["The Fool", "Death", "The Tower", "The World"]
+          }
+        ]
+      },
+      "guidance": "**Major Life Cycle**: Presence of major transition cards marks a significant life chapter ending/beginning"
+    },
+    {
+      "conditions": {
+        "court_cards_min": 3
+      },
+      "guidance": "**Social Dynamics**: Multiple court cards highlight relationships and social interactions"
+    }
+  ]
+}

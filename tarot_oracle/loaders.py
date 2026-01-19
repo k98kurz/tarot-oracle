@@ -144,26 +144,34 @@ class SpreadLoader:
         Raises:
             ValueError: If configuration is invalid
         """
-        if not isinstance(config, dict):
-            raise ValueError(f"Spread configuration must be a JSON object: {path}")
-
-        # Required fields
+        # Validate required fields
         if 'name' not in config:
             raise ValueError(f"Spread configuration must include 'name' field: {path}")
+        
         if 'layout' not in config:
             raise ValueError(f"Spread configuration must include 'layout' field: {path}")
-
-        # Validate layout
+        
+        # Validate layout - support both matrix format and position dictionary format
         layout = config['layout']
         if not isinstance(layout, list):
             raise ValueError(f"Spread 'layout' must be a list: {path}")
-
-        # Validate each position in layout
-        for i, position in enumerate(layout):
-            if not isinstance(position, dict):
-                raise ValueError(f"Layout position {i} must be a dictionary: {path}")
-            if 'position' not in position:
-                raise ValueError(f"Layout position {i} must include 'position' field: {path}")
+        
+        # Check if this is a matrix layout (nested lists of integers)
+        if layout and isinstance(layout[0], list):
+            # Matrix layout format - validate that it contains integers or 0
+            for i, row in enumerate(layout):
+                if not isinstance(row, list):
+                    raise ValueError(f"Layout row {i} must be a list: {path}")
+                for j, cell in enumerate(row):
+                    if not isinstance(cell, int):
+                        raise ValueError(f"Layout cell [{i}][{j}] must be an integer: {path}")
+        else:
+            # Position dictionary format - traditional validation
+            for i, position in enumerate(layout):
+                if not isinstance(position, dict):
+                    raise ValueError(f"Layout position {i} must be a dictionary: {path}")
+                if 'position' not in position:
+                    raise ValueError(f"Layout position {i} must include 'position' field: {path}")
 
         # Validate semantic groups if present
         if 'semantic_groups' in config:
@@ -177,15 +185,56 @@ class SpreadLoader:
             if not isinstance(semantics, list):
                 raise ValueError(f"semantics must be a list: {path}")
             
-            # Check that semantics entries are valid
-            for i, semantic in enumerate(semantics):
-                if not isinstance(semantic, dict):
-                    raise ValueError(f"Semantics entry {i} must be a dictionary: {path}")
+            # Check if this is a matrix format (nested lists)
+            if semantics and isinstance(semantics[0], list):
+                # Matrix format - validate that it contains strings or empty values
+                for i, row in enumerate(semantics):
+                    if not isinstance(row, list):
+                        raise ValueError(f"Semantics row {i} must be a list: {path}")
+                    for j, cell in enumerate(row):
+                        if cell is not None and not isinstance(cell, str):
+                            raise ValueError(f"Semantics cell [{i}][{j}] must be a string or null: {path}")
+            else:
+                # Dictionary format - traditional validation
+                for i, semantic in enumerate(semantics):
+                    if not isinstance(semantic, dict):
+                        raise ValueError(f"Semantics entry {i} must be a dictionary: {path}")
 
-        # Validate variable placeholders in semantics
-        self._validate_variable_placeholders(config.get('semantics', []), path)
+        # Validate variable placeholders in semantics (only for matrix format)
+        semantics = config.get('semantics', [])
+        if semantics and isinstance(semantics[0], list):
+            self._validate_variable_placeholders_matrix(semantics, path)
 
         return config
+
+    def _validate_variable_placeholders_matrix(self, semantics: list[list[str|None]], path: str) -> None:
+        """Validate variable placeholder syntax in semantics matrix.
+        
+        Args:
+            semantics: Matrix of semantic strings to validate
+            path: File path for error reporting
+            
+        Raises:
+            ValueError: If invalid variable placeholders are found
+        """
+        # Valid variable patterns
+        valid_variables = {
+            'water', 'fire', 'air', 'earth', 'spirit'
+        }
+        
+        pattern = r'\$\{([^}]+)\}'
+        
+        for i, row in enumerate(semantics):
+            for j, cell in enumerate(row):
+                if isinstance(cell, str):
+                    # Find all variable placeholders
+                    matches = re.findall(pattern, cell)
+                    for match in matches:
+                        if match not in valid_variables:
+                            raise ValueError(
+                                f"Invalid variable placeholder '${{{match}}}' in semantics[{i}][{j}]. "
+                                f"Valid variables: {', '.join(sorted(valid_variables))}: {path}"
+                            )
 
     def _validate_variable_placeholders(self, semantics: list[dict], path: str) -> None:
         """Validate variable placeholder syntax in semantics.
