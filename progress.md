@@ -1,45 +1,73 @@
-# Progress Report - Task 3.1: Centralized Configuration System (COMPLETED)
+# Progress Report - Task 3.2: Custom Feature Loaders (COMPLETED)
 
 ## What Was Completed
-Successfully implemented centralized configuration system with `~/.tarot-oracle/` directory structure:
+Successfully implemented comprehensive custom feature loader system with full security validation and variable placeholder support:
 
-### Files Modified:
-- **tarot.py**: Updated DeckLoader to use `config.decks_dir` and `config.home_dir` instead of hardcoded paths
-- **oracle.py**: Already importing and using centralized config
-- **config.py**: Already properly implemented with full functionality
+### Files Modified/Created:
+- **tarot_oracle/loaders.py**: Complete implementation of InvocationLoader and SpreadLoader classes
+- **tests/test_loaders.py**: Comprehensive test suite for all loader functionality
+- **tarot_oracle/tarot.py**: DeckLoader already updated in Task 3.1 to use centralized config
 
-### Key Changes Made:
-- ✅ Replaced hardcoded paths (`~/.tarot/decks/`) with `config.decks_dir` references
-- ✅ Updated `DeckLoader.resolve_deck_path()` to use centralized config paths
-- ✅ Updated `DeckLoader.list_available_decks()` to use `config.decks_dir`
-- ✅ Fixed CLI error messages to reference correct config paths
-- ✅ Ensured all path security validations work with new config paths
-- ✅ Updated method signatures from static to instance methods where needed for config access
+### Key Features Implemented:
+✅ **InvocationLoader Class**:
+- `load_invocation(name)` method with search order (local -> config directory)
+- Support for plain .txt/.md files (not JSON format as specified)
+- `list_invocations()` method returning metadata with previews
+- Comprehensive path traversal security validation
+
+✅ **SpreadLoader Class**:
+- `load_spread(name)` method with search order (local -> config directory)
+- Support for JSON format spread configurations with semantic hints
+- `list_spreads()` method returning metadata
+- `save_spread(name, config)` method for persisting custom spreads
+- Variable placeholder syntax validation for "${water}", "${fire}", "${air}", "${earth}", "${spirit}"
+- Comprehensive JSON structure validation
+
+✅ **DeckLoader Integration**:
+- Already extended to use centralized paths from Config (completed in Task 3.1)
+- Both `resolve_deck_path()` and `list_available_decks()` use config.decks_dir
+
+✅ **Security & Error Handling**:
+- Path traversal prevention across all loaders
+- Consistent error handling with informative messages
+- File validation (JSON structure for spreads/decks, plain text for invocations)
+- Secure filename sanitization
 
 ## What Was Learned
-1. **Centralized Path Management**: Replacing hardcoded paths with a centralized Config class eliminates duplication and ensures consistent behavior across the application
-2. **Static vs Instance Methods**: Static methods cannot access module-level imports reliably; instance methods provide better access to configuration
-3. **Module Import Scoping**: When modules are imported at module level but used in methods, explicit imports within methods can solve scoping issues
-4. **Configuration Precedence**: The system properly handles config.json > environment variables > defaults hierarchy
+1. **Unified Loader Architecture**: Creating consistent interfaces across different content types (invocations, spreads, decks) provides a clean, predictable API
+2. **Variable Placeholder System**: Implementing semantic variable validation enables powerful customization while maintaining type safety
+3. **Security-First Design**: Path traversal prevention and filename sanitization are critical for user-provided content
+4. **Configuration Integration**: Centralized paths eliminate hardcoded directories and enable flexible deployment
+5. **Comprehensive Validation**: Different content types require different validation strategies (plain text vs JSON)
 
 ## Struggles Encountered
-1. **Module Import Scoping**: The `config` import wasn't available in instance methods, requiring local imports in methods that need config access
-2. **Method Signature Changes**: Converting from static to instance methods required updating all call sites
-3. **Path Resolution Logic**: Ensuring security validations work with the new centralized paths required careful testing
-4. **LSP False Positives**: Type checker showed errors for module-level config access that actually worked at runtime
+1. **None - Implementation was straightforward**: The existing Config system and patterns from DeckLoader provided a solid foundation
+2. **Variable Syntax Design**: Choosing the ${variable} syntax and defining valid variables required careful consideration for extensibility
+3. **Search Order Complexity**: Implementing consistent search order (local files first, then config directory) across all loaders
+4. **Test Environment Setup**: Creating isolated test environments that don't interfere with user config directories
 
 ## Validation
-- ✅ All configuration tests pass (Config class, directory creation, file loading, environment variables)
-- ✅ All tarot module tests pass (DeckLoader uses config paths, security validation works)
-- ✅ All oracle configuration tests pass (config integration verified)
-- ✅ CLI tools operate correctly with centralized configuration
-- ✅ Directory structure `~/.tarot-oracle/` created automatically with proper subdirectories
-- ✅ Both `--list-decks` and tarot readings work with new config system
+- ✅ All loader tests pass (basic functionality, validation, security)
+- ✅ Variable placeholder validation works correctly
+- ✅ Path traversal prevention is effective
+- ✅ File type validation works (text for invocations, JSON for spreads)
+- ✅ Integration with centralized config system verified
+- ✅ Error handling provides helpful messages
+- ✅ Security sanitization prevents malicious filenames
+
+## Acceptance Criteria Verification
+✅ Create `InvocationLoader` class with `load_invocation(name)` and `list_invocations()` methods
+✅ Support plain .txt/.md files for invocations (not JSON format)
+✅ Create `SpreadLoader` class for custom spreads with semantic hints (JSON format)
+✅ Implement variable placeholder syntax validation for spreads
+✅ Extend existing `DeckLoader` to use centralized paths from Config (completed in Task 3.1)
+✅ Add consistent error handling across all loaders
+✅ Test file validation (JSON structure for spreads/decks, plain text for invocations)
 
 ## Next Steps
-Task 3.1 is now complete. The centralized configuration system provides a solid foundation for custom features:
-- **Task 3.2**: Custom Feature Loaders (next priority)
-- **Task 4.1**: Enhanced Semantic System
+Task 3.2 is now complete. The custom feature loader system provides a solid foundation for:
+- **Task 4.1**: Enhanced Semantic System (next priority)
 - **Task 4.2**: OpenRouter Integration
+- **Task 4.3**: CLI Unification
 
-The codebase now has robust centralized configuration that eliminates hardcoded paths and provides a clean foundation for custom invocations, spreads, and decks.
+The codebase now has robust, secure loaders for custom invocations and spreads that integrate seamlessly with the centralized configuration system.
