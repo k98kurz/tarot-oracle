@@ -29,15 +29,15 @@
 
 ### Task 4.2: OpenRouter Integration
 
-- Status: Pending
+- Status: Completed ✅
 - Description: Add OpenRouter client to oracle system
 - Acceptance Criteria:
-        - Implement `OpenRouterClient` class with consistent interface to existing clients
-        - Add OpenRouter to provider choices in CLI and initialization
-        - Support OpenRouter-specific model selection
-        - Add OpenRouter-specific configuration (API key, model preferences)
-        - Implement proper error handling for API rate limits and authentication
-        - Use "z-ai/glm-4.5-air:free" as the default model
+        - ✅ Implement `OpenRouterClient` class with consistent interface to existing clients
+        - ✅ Add OpenRouter to provider choices in CLI and initialization
+        - ✅ Support OpenRouter-specific model selection
+        - ✅ Add OpenRouter-specific configuration (API key, model preferences)
+        - ✅ Implement proper error handling for API rate limits and authentication
+        - ✅ Use "z-ai/glm-4.5-air:free" as the default model
 
 ### Task 4.3: CLI Unification
 
@@ -90,6 +90,7 @@
 ## Current Status & Priority
 
 ### Completed Tasks
+- ✅ **Task 4.2: OpenRouter Integration** - Add OpenRouter client to oracle system (COMPLETED - Iteration 10)
 - ✅ **Task 3.2: Custom Feature Loaders** - Create extensible loaders for custom invocations and spreads (COMPLETED - Iteration 9)
 - ✅ **Task 3.1: Centralized Configuration System** - Implement unified config management with `~/.tarot-oracle/` directory structure
 - ✅ **Task 2.1: Unified Type System** - Modernized type annotations throughout codebase
@@ -97,7 +98,7 @@
 - ✅ **Phase 1: Critical Infrastructure Fixes** - Package structure, import errors, and security hardening
 
 ### Next Priority Tasks (Iteration 11)
-1. **Task 4.2: OpenRouter Integration** - Add OpenRouter client to oracle system
+1. **Task 4.2: OpenRouter Integration** - Add OpenRouter client to oracle system (COMPLETED ✅)
 2. **Task 4.3: CLI Unification** - Consolidate separate CLI tools into unified interface
 3. **Task 5.1: Error Handling & Custom Exceptions** - Add comprehensive error handling
 
