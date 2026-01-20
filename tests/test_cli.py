@@ -17,7 +17,7 @@ from tarot_oracle.cli import (
     _add_invocation_arguments,
     _add_spread_arguments
 )
-from tarot_oracle.exceptions import TarotOracleError
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 class TestUnifiedParser(unittest.TestCase):
@@ -251,10 +251,9 @@ class TestCLIErrorHandling(unittest.TestCase):
 
     @patch('tarot_oracle.cli.oracle_main')
     def test_tarot_oracle_error_handling(self, mock_oracle_main):
-        """Test handling of TarotOracleError."""
-        mock_oracle_main.side_effect = TarotOracleError(
-            "Test error",
-            suggestions=["Try again", "Check config"]
+        """Test handling of ValueError."""
+        mock_oracle_main.side_effect = ValueError(
+            "Test error"
         )
 
         test_args = [
@@ -269,7 +268,7 @@ class TestCLIErrorHandling(unittest.TestCase):
 
         assert result != 0, f"Expected non-zero return code for error, got {result}"
         assert "Test error" in mock_stderr.getvalue(), "Error message should be in stderr"
-        assert "Suggestions:" in mock_stderr.getvalue(), "Suggestions should be in stderr"
+
 
     @patch('tarot_oracle.cli.oracle_main')
     def test_generic_error_handling(self, mock_oracle_main):

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 from tarot_oracle.config import config
 from tarot_oracle.loaders import SpreadLoader
-from tarot_oracle.exceptions import DeckLoadError, SpreadError
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 
@@ -220,22 +220,22 @@ class DeckLoader:
 
             # Basic validation
             if not isinstance(config, dict):
-                raise DeckLoadError("Deck configuration must be a JSON object", deck_path=path)
+                raise ValueError(f"Deck configuration must be a JSON object: {path}")
 
             # Validate required top-level fields
             if 'name' not in config:
-                raise DeckLoadError("Deck configuration must include 'name' field", deck_path=path)
+                raise ValueError(f"Deck configuration must include 'name' field: {path}")
 
             return config
 
         except json.JSONDecodeError as e:
-            raise DeckLoadError(f"Invalid JSON in deck file: {e}", deck_path=path)
+            raise ValueError(f"Invalid JSON in deck file: {e} (file: {path})")
         except FileNotFoundError:
-            raise DeckLoadError(f"Deck file not found: {path}", deck_path=path)
-        except DeckLoadError:
+            raise ValueError(f"Deck file not found: {path}")
+        except ValueError:
             raise
         except Exception as e:
-            raise DeckLoadError(f"Error loading deck file: {e}", deck_path=path)
+            raise ValueError(f"Error loading deck file: {e} (file: {path})")
 
     def list_available_decks(self) -> list[dict[str, str]]:
         """Scan ~/.tarot-oracle/decks/ and return deck metadata."""
@@ -274,11 +274,11 @@ class DeckLoader:
             Deck: Loaded deck instance
             
         Raises:
-            DeckLoadError: If deck file is not found or invalid
+            ValueError: If deck file is not found or invalid
         """
         deck_path = self.resolve_deck_path(deck_name)
         if deck_path is None:
-            raise DeckLoadError(f"Deck '{deck_name}' not found in search paths")
+            raise ValueError(f"Deck '{deck_name}' not found in search paths")
         
         return Deck(deck_path)
 
@@ -452,7 +452,7 @@ class Deck:
                 cards.append(card)
 
         if not cards:
-            raise DeckLoadError("No valid cards found in deck configuration")
+            raise ValueError("No valid cards found in deck configuration")
 
         return cards
 
@@ -1017,7 +1017,7 @@ def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|N
         layout = ast.literal_eval(spread_input)
         return layout, None
     except (ValueError, SyntaxError):
-        raise SpreadError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
+        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
 
 
 def resolve_card_codes(codes: str) -> list[Card]:

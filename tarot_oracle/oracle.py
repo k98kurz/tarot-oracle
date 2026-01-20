@@ -48,14 +48,7 @@ from tarot_oracle.tarot import (
 # Import configuration
 from tarot_oracle.config import config
 from tarot_oracle.loaders import InvocationLoader
-from tarot_oracle.exceptions import (
-    ProviderError,
-    AuthenticationError,
-    NetworkError,
-    RateLimitError,
-    ConfigError,
-    InvocationError,
-)
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 # Import Gemini SDK when available
 try:
@@ -110,7 +103,7 @@ and may the oracle speak with clarity and truth."""
             The invocation text to be used for the reading.
             
         Raises:
-            InvocationError: If custom invocation fails to load (but still
+            ValueError: If custom invocation fails to load (but still
                 returns default invocation).
                 
         Example:
@@ -124,7 +117,7 @@ and may the oracle speak with clarity and truth."""
                 if custom_invocation:
                     return custom_invocation
             except Exception as e:
-                raise InvocationError(f"Failed to load invocation '{name}': {e}", invocation_name=name)
+                raise ValueError(f"Failed to load invocation '{name}': {e}")
         # Fall back to default
         return self.get_hermes_thoth_prometheus_invocation()
 
@@ -289,10 +282,10 @@ class OpenRouterClient:
             Generated text response, or None if generation failed.
             
         Raises:
-            AuthenticationError: If API key is invalid (HTTP 401).
-            RateLimitError: If rate limit is exceeded (HTTP 429).
-            NetworkError: For network connectivity or timeout issues.
-            ProviderError: For other API-related errors.
+            ValueError: If API key is invalid (HTTP 401).
+            ValueError: If rate limit is exceeded (HTTP 429).
+            ValueError: For network connectivity or timeout issues.
+            ValueError: For other API-related errors.
             
         Example:
             >>> client = OpenRouterClient(api_key="key")
@@ -329,23 +322,23 @@ class OpenRouterClient:
                     content = result["choices"][0]["message"]["content"]
                     return content.strip() if content else None
                 else:
-                    raise NetworkError("Invalid response format from OpenRouter", provider="openrouter")
+                    raise ValueError("Invalid response format from OpenRouter")
             elif response.status_code == 401:
-                raise AuthenticationError("Invalid OpenRouter API key", provider="openrouter")
+                raise ValueError("Invalid OpenRouter API key")
             elif response.status_code == 429:
                 retry_after = response.headers.get('Retry-After')
-                raise RateLimitError("OpenRouter API rate limit exceeded", provider="openrouter", retry_after=int(retry_after) if retry_after else None)
+                raise ValueError(f"OpenRouter API rate limit exceeded. Retry after: {retry_after}")
             else:
-                raise NetworkError(f"OpenRouter API returned status {response.status_code}: {response.text}", provider="openrouter")
+                raise ValueError(f"OpenRouter API returned status {response.status_code}: {response.text}")
                 
         except requests.exceptions.Timeout:
-            raise NetworkError(f"OpenRouter API request timed out after {timeout} seconds", provider="openrouter", timeout=timeout)
+            raise ValueError(f"OpenRouter API request timed out after {timeout} seconds")
         except requests.exceptions.RequestException as e:
-            raise NetworkError(f"OpenRouter API request failed: {e}", provider="openrouter")
-        except (AuthenticationError, NetworkError, RateLimitError):
+            raise ValueError(f"OpenRouter API request failed: {e}")
+        except ValueError:
             raise
         except Exception as e:
-            raise ProviderError(f"Unexpected error calling OpenRouter API: {e}", provider="openrouter")
+            raise ValueError(f"Unexpected error calling OpenRouter API: {e}")
 
     def check_api_key(self) -> bool:
         """Check if API key is valid.
@@ -668,9 +661,9 @@ class Oracle:
             ollama_host: Host for Ollama server. If None, uses config.
             
         Raises:
-            AuthenticationError: If required API key is missing.
+            ValueError: If required API key is missing.
             ImportError: If required packages are not installed.
-            ProviderError: If unsupported provider is specified.
+            ValueError: If unsupported provider is specified.
             
         Example:
             >>> oracle = Oracle(provider="gemini", api_key="key")
@@ -685,7 +678,7 @@ class Oracle:
         if self.provider == "gemini":
             api_key = api_key or config.google_ai_api_key
             if not api_key:
-                raise AuthenticationError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider", provider="gemini")
+                raise ValueError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider")
             if genai is None:
                 raise ImportError("google-genai package not installed. Install with: pip install google-genai")
             self.client = GeminiClient(api_key, model or "gemini-3-flash")
@@ -694,7 +687,7 @@ class Oracle:
         elif self.provider == "openrouter":
             api_key = api_key or config.openrouter_api_key
             if not api_key:
-                raise AuthenticationError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider", provider="openrouter")
+                raise ValueError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider")
             self.client = OpenRouterClient(api_key, model or "z-ai/glm-4.5-air:free")
             self.default_model = model or "z-ai/glm-4.5-air:free"
 
@@ -703,7 +696,7 @@ class Oracle:
             self.client = OllamaClient(host)
             self.default_model = model or "mistral"
         else:
-            raise ProviderError(f"Unsupported provider: {self.provider}", provider=self.provider)
+            raise ValueError(f"Unsupported provider: {self.provider}")
 
     def get_client(self) -> GeminiClient | OpenRouterClient | OllamaClient:
         """Get the current provider client instance.

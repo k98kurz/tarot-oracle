@@ -35,7 +35,7 @@ from typing import cast
 # Import existing CLI modules
 from tarot_oracle.oracle import main as oracle_main
 from tarot_oracle.tarot import main as tarot_main
-from tarot_oracle.exceptions import TarotOracleError
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 def create_unified_parser() -> ArgumentParser:
@@ -315,7 +315,7 @@ def handle_reading_command(args: Namespace) -> int:
         int: Exit code from oracle execution (0 for success, non-zero for error)
         
     Raises:
-        TarotOracleError: For any oracle-related errors during execution
+        ValueError: For any oracle-related errors during execution
         
     Example:
         >>> from argparse import Namespace
@@ -382,7 +382,7 @@ def handle_deck_command(args: Namespace) -> int:
         int: Exit code from tarot execution (0 for success, non-zero for error)
         
     Raises:
-        TarotOracleError: For any deck-related errors during execution
+        ValueError: For any deck-related errors during execution
         
     Example:
         >>> from argparse import Namespace
@@ -432,7 +432,7 @@ def handle_invocation_command(args: Namespace) -> int:
         int: Exit code (0 for success, non-zero for error)
         
     Raises:
-        TarotOracleError: For any invocation-related errors during execution
+        ValueError: For any invocation-related errors during execution
         
     Example:
         >>> from argparse import Namespace
@@ -487,7 +487,7 @@ def handle_spread_command(args: Namespace) -> int:
         int: Exit code (0 for success, non-zero for error)
         
     Raises:
-        TarotOracleError: For any spread-related errors during execution
+        ValueError: For any spread-related errors during execution
         
     Example:
         >>> from argparse import Namespace
@@ -545,7 +545,7 @@ def main(args: list[str] | None = None) -> int:
         int: Exit code (0 for success, non-zero for error)
         
     Raises:
-        TarotOracleError: For any command execution errors
+        ValueError: For any command execution errors
         
     Example:
         >>> # Direct call with arguments
@@ -583,7 +583,7 @@ def main(args: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.", file=sys.stderr)
         return 130
-    except TarotOracleError as e:
+    except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     except Exception as e:
