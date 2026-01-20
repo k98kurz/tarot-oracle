@@ -26,8 +26,8 @@ Environment Variables:
     - GOOGLE_AI_API_KEY: Google Gemini API key
     - OPENROUTER_API_KEY: OpenRouter API key
     - OLLAMA_HOST: Ollama server host address
-    - AUTOSAVE_SESSIONS: Enable/disable session autosaving ('true'/'false')
-    - AUTOSAVE_LOCATION: Override session save directory
+    - TAROT_ORACLE_AUTOSAVE: Enable/disable session autosaving ('true'/'false')
+    - TARO_ORACLE_AUTOSAVE_LOCATION: Override session save directory
 
 Example:
     >>> from tarot_oracle.config import config
@@ -119,23 +119,14 @@ class Config:
 
     def _load_env_vars(self) -> None:
         """Load configuration from environment variables."""
-        env_mappings = {
-            "ORACLE_PROVIDER": "provider",
-            "GOOGLE_AI_API_KEY": "google_ai_api_key",
-            "OPENROUTER_API_KEY": "openrouter_api_key",
-            "OLLAMA_HOST": "ollama_host",
-            "AUTOSAVE_SESSIONS": "autosave_sessions",
-            "AUTOSAVE_LOCATION": "autosave_location",
-        }
-
-        for env_var, config_key in env_mappings.items():
-            value = os.getenv(env_var)
-            if value is not None:
-                # Convert string boolean to actual boolean
-                if config_key == "autosave_sessions":
-                    self.config[config_key] = value.lower() in ("true", "1", "yes")
-                else:
-                    self.config[config_key] = value
+        self.config["provider"] = os.getenv("ORACLE_PROVIDER", self.config.get("provider", None))
+        self.config["google_ai_api_key"] = os.getenv("GOOGLE_AI_API_KEY", self.config.get("google_ai_api_key", None))
+        self.config["openrouter_api_key"] = os.getenv("OPENROUTER_API_KEY", self.config.get("openrouter_api_key", None))
+        self.config["ollama_host"] = os.getenv("OLLAMA_HOST", self.config.get("ollama_host", None))
+        self.config["autosave_location"] = os.getenv("TARO_ORACLE_AUTOSAVE_LOCATION", self.config.get("autosave_location", None))
+        autosave_sessions = os.getenv("TAROT_ORACLE_AUTOSAVE")
+        if autosave_sessions is not None:
+            self.config["autosave_sessions"] = autosave_sessions.lower() in ["true", "1", "yes"]
 
     def _ensure_directories(self) -> None:
         """Ensure all required directories exist."""
