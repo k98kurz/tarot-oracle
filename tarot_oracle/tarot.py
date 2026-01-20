@@ -13,13 +13,7 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 from tarot_oracle.config import config
 from tarot_oracle.loaders import SpreadLoader
-from tarot_oracle.exceptions import (
-    DeckLoadError,
-    SpreadError,
-    CardCodeError,
-    SemanticValidationError,
-    InvalidDeckStateError,
-)
+from tarot_oracle.exceptions import DeckLoadError, SpreadError
 
 
 
@@ -174,230 +168,12 @@ SEMANTICS = {
 }
 
 
-class SemanticAnalyzer:
-    """Analyzes semantic patterns and provides rule-based interpretation guidance."""
-    
-    def __init__(self, semantic_config: dict[str, Any] | None = None) -> None:
-        """Initialize analyzer with semantic configuration.
-        
-        Args:
-            semantic_config: Dictionary containing semantic_groups, semantics, and guidance rules
-        """
-        self.semantic_groups = semantic_config.get('semantic_groups', {}) if semantic_config else {}
-        self.semantics_matrix = semantic_config.get('semantics', []) if semantic_config else []
-        self.guidance_rules = semantic_config.get('guidance_rules', []) if semantic_config else []
-    
-    def resolve_variables(self, text: str) -> str:
-        """Replace variable placeholders with their definitions.
-        
-        Args:
-            text: Text containing variable placeholders like ${water}
-            
-        Returns:
-            Text with placeholders replaced by their definitions
-        """
-        import re
-        
-        for var_name, definition in VARIABLE_DEFINITIONS.items():
-            placeholder = f"${{{var_name}}}"
-            text = text.replace(placeholder, definition)
-        
-        return text
-    
-    def analyze_card_combinations(self, cards: list['Card']) -> dict[str, Any]:
-        """Analyze combinations of cards for patterns.
-        
-        Args:
-            cards: List of cards drawn in the reading
-            
-        Returns:
-            Dictionary containing analysis results
-        """
-        analysis = {
-            'elemental_balance': self._analyze_elemental_balance(cards),
-            'major_arcana_count': sum(1 for card in cards if card.card_type == 'major'),
-            'minor_arcana_count': sum(1 for card in cards if card.card_type == 'minor'),
-            'court_cards_count': sum(1 for card in cards if card.card_type == 'minor' and self._is_court_card(card)),
-            'reversed_count': sum(1 for card in cards if hasattr(card, 'is_reversed') and card.is_reversed),
-            'suit_distribution': self._analyze_suit_distribution(cards),
-            'numeral_distribution': self._analyze_numeral_distribution(cards),
-            'card_count': len(cards)
-        }
-        
-        return analysis
-    
-    def _analyze_elemental_balance(self, cards: list['Card']) -> dict[str, int]:
-        """Analyze elemental balance in the reading."""
-        elements = {'fire': 0, 'water': 0, 'air': 0, 'earth': 0}
-        
-        for card in cards:
-            if card.card_type == 'minor':
-                if card.suit == 'W':  # Wands
-                    elements['fire'] += 1
-                elif card.suit == 'C':  # Cups
-                    elements['water'] += 1
-                elif card.suit == 'S':  # Swords
-                    elements['air'] += 1
-                elif card.suit == 'P':  # Pentacles
-                    elements['earth'] += 1
-        
-        return elements
-    
-    def _analyze_suit_distribution(self, cards: list['Card']) -> dict[str, int]:
-        """Analyze distribution of suits in minor arcana cards."""
-        suits = {'Wands': 0, 'Cups': 0, 'Swords': 0, 'Pentacles': 0}
-        
-        for card in cards:
-            if card.card_type == 'minor':
-                suit_names = {'W': 'Wands', 'C': 'Cups', 'S': 'Swords', 'P': 'Pentacles'}
-                if card.suit in suit_names:
-                    suits[suit_names[card.suit]] += 1
-        
-        return suits
-    
-    def _is_court_card(self, card: 'Card') -> bool:
-        """Check if a card is a court card."""
-        if card.card_type != 'minor':
-            return False
-        
-        court_values = {'Page', 'Knight', 'Queen', 'King'}
-        return card.value in court_values
-    
-    def _analyze_numeral_distribution(self, cards: list['Card']) -> dict[str, int]:
-        """Analyze distribution of numerals in minor arcana cards."""
-        numerals = {'Aces': 0, 'Number cards': 0, 'Court cards': 0}
-        
-        for card in cards:
-            if card.card_type == 'minor':
-                if self._is_court_card(card):
-                    numerals['Court cards'] += 1
-                elif card.value == 'A':
-                    numerals['Aces'] += 1
-                else:
-                    numerals['Number cards'] += 1
-        
-        return numerals
-    
-    def generate_guidance(self, cards: list['Card'], semantic_groups: dict[str, list['Card']]) -> list[str]:
-        """Generate guidance based on rules and card analysis.
-        
-        Args:
-            cards: List of cards drawn
-            semantic_groups: Cards grouped by semantic meaning
-            
-        Returns:
-            List of guidance strings in markdown format
-        """
-        guidance = []
-        analysis = self.analyze_card_combinations(cards)
-        
-        # Apply guidance rules
-        for rule in self.guidance_rules:
-            if self._rule_matches(rule, cards, analysis, semantic_groups):
-                guidance_text = self.resolve_variables(rule.get('guidance', ''))
-                if guidance_text:
-                    guidance.append(f"- {guidance_text}")
-        
-        # Add general insights based on analysis
-        if analysis['major_arcana_count'] > len(cards) // 2:
-            guidance.append("- **Major Arcana Dominance**: This reading carries significant spiritual or karmic weight")
-        
-        if analysis['reversed_count'] > len(cards) // 2:
-            guidance.append("- **Many Reversed Cards**: Expect challenges, delays, or internal blockages")
-        
-        return guidance
-    
-    def _rule_matches(self, rule: dict[str, Any], cards: list['Card'], analysis: dict[str, Any], semantic_groups: dict[str, list['Card']]) -> bool:
-        """Check if a guidance rule matches the current reading."""
-        conditions = rule.get('conditions', {})
-        
-        # Check card conditions
-        if 'cards' in conditions:
-            for card_condition in conditions['cards']:
-                if not self._card_condition_matches(card_condition, cards, semantic_groups):
-                    return False
-        
-        # Check analysis conditions  
-        if 'major_arcana_min' in conditions:
-            if analysis['major_arcana_count'] < conditions['major_arcana_min']:
-                return False
-        
-        if 'major_arcana_max' in conditions:
-            if analysis['major_arcana_count'] > conditions['major_arcana_max']:
-                return False
-        
-        if 'minor_arcana_min' in conditions:
-            if analysis['minor_arcana_count'] < conditions['minor_arcana_min']:
-                return False
-        
-        if 'court_cards_min' in conditions:
-            if analysis['court_cards_count'] < conditions['court_cards_min']:
-                return False
-        
-        if 'reversed_min' in conditions:
-            if analysis['reversed_count'] < conditions['reversed_min']:
-                return False
-        
-        if 'reversed_max' in conditions:
-            if analysis['reversed_count'] > conditions['reversed_max']:
-                return False
-        
-        # Check elemental conditions
-        if 'elemental_balance' in conditions:
-            element_conditions = conditions['elemental_balance']
-            for element, min_count in element_conditions.items():
-                if analysis['elemental_balance'].get(element, 0) < min_count:
-                    return False
-        
-        return True
-    
-    def _card_condition_matches(self, card_condition: dict[str, Any], cards: list['Card'], semantic_groups: dict[str, list['Card']]) -> bool:
-        """Check if a specific card condition matches."""
-        condition_type = card_condition.get('type')
-        
-        if condition_type == 'in_group':
-            group_name = card_condition.get('group')
-            if group_name in semantic_groups:
-                group_cards = semantic_groups[group_name]
-                required_cards = card_condition.get('cards', [])
-                for req_card in required_cards:
-                    if not any(card.name == req_card or card.get_notation() == req_card for card in group_cards):
-                        return False
-                return True
-        
-        elif condition_type == 'anywhere':
-            required_cards = card_condition.get('cards', [])
-            card_names = [card.name for card in cards] + [card.get_notation() for card in cards]
-            for req_card in required_cards:
-                if req_card in card_names:
-                    return True
-            return False
-        
-        elif condition_type == 'suit_present':
-            required_suits = card_condition.get('suits', [])
-            card_suits = [card.suit for card in cards if card.card_type == 'minor' and card.suit]
-            for suit in required_suits:
-                if suit in card_suits:
-                    return True
-            return False
-        
-        elif condition_type == 'card_type_count':
-            card_type = card_condition.get('card_type')  # 'major' or 'minor'
-            min_count = card_condition.get('min_count', 1)
-            max_count = card_condition.get('max_count', len(cards))
-            
-            type_count = sum(1 for card in cards if card.card_type == card_type)
-            return min_count <= type_count <= max_count
-        
-        elif condition_type == 'not_present':
-            excluded_cards = card_condition.get('cards', [])
-            card_names = [card.name for card in cards] + [card.get_notation() for card in cards]
-            for excluded_card in excluded_cards:
-                if excluded_card in card_names:
-                    return False
-            return True
-        
-        return False
+def resolve_variables(text: str) -> str:
+    """Replace variable placeholders like ${fire} with their definitions."""
+    for var_name, definition in VARIABLE_DEFINITIONS.items():
+        placeholder = f"${{{var_name}}}"
+        text = text.replace(placeholder, definition)
+    return text
 
 
 class DeckLoader:
@@ -737,7 +513,7 @@ class Deck:
     def draw_cards(self, count: int) -> list[Card]:
         """Draw specified number of cards from shuffled deck."""
         if not self.shuffled:
-            raise InvalidDeckStateError("Deck must be shuffled before drawing cards", deck_state="unshuffled")
+            raise ValueError("Deck must be shuffled before drawing cards")
         return self.shuffled[:count]
 
 
@@ -957,50 +733,31 @@ class SpreadRenderer:
 class SemanticAdapter:
     """Maps cards to semantic meanings based on spread position."""
 
-    def __init__(self, layout: list[list[int]], cards: list[Card], semantics: list[list[str]]|None = None, 
-                 semantic_config: dict[str, Any]|None = None) -> None:
-        """Enhanced SemanticAdapter with support for custom configurations.
-        
+    def __init__(self, layout: list[list[int]], cards: list[Card], semantics: list[list[str]]|None = None) -> None:
+        """Initialize adapter with layout, cards, and semantics.
+
         Args:
             layout: Card position layout matrix
             cards: List of drawn cards
-            semantics: Optional semantics matrix (for backward compatibility)
-            semantic_config: Custom semantic configuration with groups and guidance
+            semantics: Optional semantics matrix with variable placeholders
         """
         self.layout = layout
         self.cards = cards
-        self.semantics = semantics or []
-        self.semantic_config = semantic_config or {}
-        self.analyzer = SemanticAnalyzer(semantic_config) if semantic_config else None
-        
-        # Process custom semantics from config if available
-        if not self.semantics and 'semantics' in self.semantic_config:
-            # Resolve variable placeholders in semantics
-            resolved_semantics = []
-            for row in self.semantic_config['semantics']:
-                resolved_row = []
-                for cell in row:
-                    if isinstance(cell, str):
-                        resolved_cell = self.analyzer.resolve_variables(cell) if self.analyzer else cell
-                        resolved_row.append(resolved_cell)
-                    else:
-                        resolved_row.append(cell)
-                resolved_semantics.append(resolved_row)
-            self.semantics = resolved_semantics
-        
-        self._validate_dimensions()
+        self.semantics = self._process_semantics(semantics) if semantics else []
 
-    def _validate_dimensions(self) -> None:
-        """Validate layout and semantics have compatible dimensions."""
-        if not self.semantics:
-            return  # Empty semantics always valid
-
-        if len(self.layout) != len(self.semantics):
-            raise SemanticValidationError('dimensions of layout and semantics are incompatible')
-
-        for layout_row, semantic_row in zip(self.layout, self.semantics):
-            if len(layout_row) != len(semantic_row):
-                raise SemanticValidationError('dimensions of layout and semantics are incompatible')
+    def _process_semantics(self, semantics: list[list[str]]) -> list[list[str]]:
+        """Resolve variable placeholders in semantics."""
+        resolved = []
+        for row in semantics:
+            resolved_row = []
+            for cell in row:
+                if isinstance(cell, str):
+                    resolved_cell = resolve_variables(cell)
+                else:
+                    resolved_cell = cell
+                resolved_row.append(resolved_cell)
+            resolved.append(resolved_row)
+        return resolved
 
     def _get_semantic_for_position(self, position: int) -> str|None:
         """Find semantic value for a given position in layout."""
@@ -1016,7 +773,6 @@ class SemanticAdapter:
 
     def _build_card_index_to_semantic(self) -> dict[int, str]:
         """Map card drawing order to semantic meanings."""
-        # Extract and sort unique positions (same as render_spread_json)
         flat_positions = []
         for row in self.layout:
             for pos in row:
@@ -1029,7 +785,6 @@ class SemanticAdapter:
             semantic = self._get_semantic_for_position(position)
             if semantic:
                 card_index_to_semantic[card_idx] = semantic
-            # No semantic = falls under "General Information"
 
         return card_index_to_semantic
 
@@ -1054,7 +809,6 @@ class SemanticAdapter:
             suit_names = {'W': 'Wands', 'C': 'Cups', 'S': 'Swords', 'P': 'Pentacles'}
             type_name = suit_names[card.suit or '']
 
-        # Reversed indicator already in notation via [↓] prefix
         legend_line = f"  {card.get_notation()} - {card.name} ({type_name})"
         if include_keywords:
             legend_line += f": {card.get_keywords()}"
@@ -1088,7 +842,6 @@ class SemanticAdapter:
 
         # Add General Information last if it exists
         if "General Information" in semantic_groups:
-            # Add leading newline if there were semantic groups, otherwise it's first
             if lines:
                 lines.append(f"\nGeneral Information:")
             else:
@@ -1098,175 +851,43 @@ class SemanticAdapter:
 
         return "\n".join(lines)
 
-    
-    def get_semantic_groups(self) -> dict[str, list[Card]]:
-        """Get semantic groups with support for custom semantic_groups from config."""
-        # First, try to get custom semantic groups from config
-        if self.analyzer and 'semantic_groups' in self.semantic_config:
-            custom_groups = self.semantic_config['semantic_groups']
-            result_groups = {}
-            
-            # Process custom semantic groups
-            for group_name, group_info in custom_groups.items():
-                if isinstance(group_info, dict) and 'positions' in group_info:
-                    # Group defined by positions
-                    group_cards = []
-                    for pos in group_info['positions']:
-                        card = self._get_card_at_position(pos)
-                        if card:
-                            group_cards.append(card)
-                    
-                    if group_cards:
-                        description = group_info.get('description', group_name)
-                        result_groups[description] = group_cards
-            
-            # Merge with traditional semantic grouping
-            traditional_groups = self._group_cards_by_semantic()
-            result_groups.update(traditional_groups)
-            return result_groups
-        
-        # Fall back to traditional semantic grouping
-        return self._group_cards_by_semantic()
-    
-    def _get_card_at_position(self, position: int) -> Card | None:
-        """Get card at specific position in layout."""
-        # Extract and sort unique positions
-        flat_positions = []
-        for row in self.layout:
-            for pos in row:
-                flat_positions.append(pos)
-        
-        unique_positions = sorted(set(pos for pos in flat_positions if pos > 0))
-        
-        try:
-            position_index = unique_positions.index(position)
-            if position_index < len(self.cards):
-                return self.cards[position_index]
-        except ValueError:
-            pass
-        
-        return None
-    
-    def generate_guidance(self) -> list[str]:
-        """Generate interpretation guidance using semantic analysis."""
-        if not self.analyzer:
+    def get_guidance(self, semantic_config: dict[str, Any]|None) -> list[str]:
+        """Get guidance array from semantic config if available."""
+        if not semantic_config or 'guidance' not in semantic_config:
             return []
-        
-        semantic_groups = self.get_semantic_groups()
-        return self.analyzer.generate_guidance(self.cards, semantic_groups)
-    
-    def get_analysis(self) -> dict[str, Any]:
-        """Get detailed semantic analysis of the reading."""
-        if not self.analyzer:
-            return {}
-        
-        return self.analyzer.analyze_card_combinations(self.cards)
-    
-    def render_full_interpretation(self, include_keywords: bool = False) -> str:
-        """Render complete interpretation including semantic legend and guidance.
-        
-        Args:
-            include_keywords: Whether to include card keywords in legend
-            
-        Returns:
-            Formatted interpretation string
-        """
-        parts = []
-        
-        # Add semantic legend
-        legend = self.render_semantic_legend(include_keywords)
-        if legend:
-            parts.append(legend)
-        
-        # Add guidance if available
-        guidance = self.generate_guidance()
-        if guidance:
-            if parts:  # Add separator if legend exists
-                parts.append("\n\n## Interpretive Guidance")
-            else:
-                parts.append("## Interpretive Guidance")
-            parts.extend(guidance)
-        
-        # Add detailed analysis if available
-        analysis = self.get_analysis()
-        if analysis:
-            if parts:  # Add separator
-                parts.append("\n\n## Reading Analysis")
-            else:
-                parts.append("## Reading Analysis")
-            
-            # Key insights from analysis
-            if analysis.get('major_arcana_count', 0) > analysis.get('minor_arcana_count', 0):
-                parts.append("- **Spiritual Focus**: More Major Arcana cards suggest spiritual/karmic themes")
-            
-            if analysis.get('reversed_count', 0) > len(self.cards) // 2:
-                parts.append("- **Transformation Phase**: Many reversed cards indicate change and reflection")
-            
-            elemental = analysis.get('elemental_balance', {})
-            dominant_elements = [elem for elem, count in elemental.items() if count > 0]
-            if len(dominant_elements) == 1:
-                element_names = {
-                    'fire': 'Fire (Action/Passion)',
-                    'water': 'Water (Emotion/Intuition)', 
-                    'air': 'Air (Intellect/Communication)',
-                    'earth': 'Earth (Material/Practical)'
-                }
-                parts.append(f"- **Elemental Focus**: {element_names.get(dominant_elements[0], dominant_elements[0])}")
-        
-        return "\n".join(parts)
+
+        guidance = []
+        for guidance_text in semantic_config['guidance']:
+            resolved = resolve_variables(guidance_text)
+            if resolved:
+                guidance.append(f"- {resolved}")
+        return guidance
 
 
 class TarotDivination:
     """Main orchestrator for tarot divination.
-    
-    Provides the primary interface for performing complete tarot readings
-    with support for custom decks, semantic analysis, and enhanced interpretation
-    features. Handles the full reading workflow from question to final output.
-    
+
+    Provides the primary interface for performing tarot readings with
+    support for custom decks, semantic groupings, and JSON/ASCII output.
+    Handles the full reading workflow from question to final output.
+
     Features:
         - Support for standard and custom tarot decks
         - Deterministic card drawing using cryptographic seeds
         - Multiple spread types (3-card, Celtic Cross, custom spreads)
-        - Enhanced semantic analysis with guidance generation
+        - Semantic groupings with variable placeholder resolution
         - JSON and ASCII output formats
         - Reversed card support
         - Custom invocation integration
-    
+
     Attributes:
         deck (Deck): The tarot deck used for readings
-    
+
     Example:
-        >>> # Basic reading
         >>> tarot = TarotDivination()
-        >>> spread, legend = tarot.perform_reading(
-        ...     "What does the future hold?", 
-        ...     spread_type="3-card"
-        ... )
+        >>> spread, legend = tarot.perform_reading("What does the future hold?", "3-card")
         >>> print(spread)
         >>> print(legend)
-        
-        >>> # Enhanced reading with semantic analysis
-        >>> result = tarot.perform_reading_enhanced(
-        ...     "Should I take this opportunity?",
-        ...     spread_type="celtic-cross",
-        ...     allow_reversed=True
-        ... )
-        >>> print(result["interpretation"])
-        >>> 
-        >>> # Custom deck reading
-        >>> custom_tarot = TarotDivination(deck_path="my-custom-deck")
-        >>> result = custom_tarot.perform_reading_json(
-        ...     "What energy surrounds this situation?",
-        ...     spread_type="3-card"
-        ... )
-        
-        >>> # Reading with custom invocation
-        >>> result = tarot.perform_reading_enhanced(
-        ...     "Seeking guidance for my path",
-        ...     spread_type="celtic-cross",
-        ...     invocation_name="hermes-thoth",
-        ...     allow_reversed=True
-        ... )
     """
 
     def __init__(self, deck_path: str | None = None) -> None:
@@ -1317,9 +938,8 @@ class TarotDivination:
         seed = self.create_seed(timestamp, question, invocation, random_bytes)
         drawn_cards = self.draw_cards_for_reading(seed, spread_layout, allow_reversed)
 
-        # Normalize layout and generate JSON structure
-        normalized_layout, _ = self._normalize_spread_layout(spread_layout)
-        json_data = SpreadRenderer.render_json(drawn_cards, normalized_layout, include_legend)
+        # Generate JSON structure
+        json_data = SpreadRenderer.render_json(drawn_cards, spread_layout, include_legend)
 
         # Add metadata
         json_data.update({
@@ -1328,41 +948,21 @@ class TarotDivination:
             "timestamp": timestamp,
             "seed": seed,
             "allow_reversed": allow_reversed,
-            "invocation": invocation  # Add invocation to metadata
+            "invocation": invocation
         })
 
         return json_data
 
-    def perform_reading(self, question: str, spread_layout, invocation: str|None = None,
-                        random_bytes: int = 0, allow_reversed: bool = False, show_descriptions: bool = True, spread_type: str = "unknown") -> tuple[str, str]:
-        """Perform complete tarot reading by orchestrating seed creation, card drawing, and formatting."""
-        # Create seed
-        timestamp = str(int(time()))
-        seed = self.create_seed(timestamp, question, invocation, random_bytes)
+    def perform_reading(self, question: str, spread_input: str, invocation: str|None = None,
+                        random_bytes: int = 0, allow_reversed: bool = False, show_descriptions: bool = True) -> tuple[str, str]:
+        """Perform tarot reading with semantic groupings.
 
-        # Draw cards
-        drawn_cards = self.draw_cards_for_reading(seed, spread_layout, allow_reversed)
-
-        # Format output
-        normalized_layout, _ = self._normalize_spread_layout(spread_layout)
-        spread_display = SpreadRenderer.render_spread(drawn_cards, normalized_layout)
-
-        # Get semantics for named spreads, empty for custom layouts
-        semantics = SEMANTICS.get(spread_type, None)
-        legend_display = SpreadRenderer.render_semantic_legend(drawn_cards, normalized_layout, semantics, include_keywords=show_descriptions)
-
-        return spread_display, legend_display
-
-    def perform_reading_enhanced(self, question: str, spread_input: str, invocation: str|None = None,
-                                 random_bytes: int = 0, allow_reversed: bool = False, show_descriptions: bool = True) -> tuple[str, str, dict[str, Any]]:
-        """Perform enhanced tarot reading with semantic analysis support.
-        
         Returns:
-            Tuple of (spread_display, legend_display, analysis_data)
+            Tuple of (spread_display, legend_display)
         """
         # Resolve spread with semantic configuration
-        layout, semantic_config = resolve_spread_with_semantics(spread_input)
-        
+        layout, semantic_config = resolve_spread(spread_input)
+
         # Create seed
         timestamp = str(int(time()))
         seed = self.create_seed(timestamp, question, invocation, random_bytes)
@@ -1374,41 +974,27 @@ class TarotDivination:
         normalized_layout, _ = self._normalize_spread_layout(layout)
         spread_display = SpreadRenderer.render_spread(drawn_cards, normalized_layout)
 
-        # Use enhanced semantic adapter
-        adapter = SemanticAdapter(normalized_layout, drawn_cards, None, semantic_config)
+        # Get semantics matrix
+        if semantic_config and 'semantics' in semantic_config:
+            semantics_matrix = semantic_config['semantics']
+        else:
+            # Built-in spread - get from SEMANTICS dict
+            spread_type = spread_input if spread_input in SPREADS else 'unknown'
+            semantics_matrix = SEMANTICS.get(spread_type)
+
+        # Use semantic adapter for legend
+        adapter = SemanticAdapter(normalized_layout, drawn_cards, semantics_matrix)
         legend_display = adapter.render_semantic_legend(include_keywords=show_descriptions)
-        
-        # Generate analysis data
-        analysis_data = {
-            'semantic_groups': adapter.get_semantic_groups(),
-            'guidance': adapter.generate_guidance(),
-            'analysis': adapter.get_analysis(),
-            'semantic_config': semantic_config
-        }
 
-        return spread_display, legend_display, analysis_data
+        # Add guidance if available (custom spreads only)
+        guidance = adapter.get_guidance(semantic_config) if semantic_config else []
+        if guidance:
+            legend_display += "\n\n## Interpretive Guidance\n" + "\n".join(guidance)
+
+        return spread_display, legend_display
 
 
-def resolve_spread(spread_input: str) -> list[list[int]]:
-    """Resolve spread from alias, custom file, or custom matrix."""
-    # Check built-in spreads first
-    if spread_input in SPREADS:
-        return SPREADS[spread_input]
-    
-    # Try to load custom spread
-    loader = SpreadLoader()
-    custom_spread = loader.load_spread(spread_input)
-    if custom_spread and 'layout' in custom_spread:
-        return custom_spread['layout']
-    
-    # Try to parse as custom matrix
-    try:
-        return ast.literal_eval(spread_input)
-    except (ValueError, SyntaxError):
-        raise SpreadError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
-
-
-def resolve_spread_with_semantics(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|None]:
+def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|None]:
     """Resolve spread with semantic configuration from alias, custom file, or custom matrix.
     
     Returns:
@@ -1473,7 +1059,7 @@ def resolve_card_codes(codes: str) -> list[Card]:
             resolved_card = Card(card.name, card.card_type, card.suit, card.value, card.keywords, card.reversed_keywords, is_reversed)
             resolved_cards.append(resolved_card)
         else:
-            raise CardCodeError(f"Invalid card code: '{code}'. Valid codes include major arcana (I, II, etc.) and minor arcana (W3, CQ, SA, PK, etc.)", card_code=code)
+            raise ValueError(f"Invalid card code: '{code}'. Valid codes include major arcana (I, II, etc.) and minor arcana (W3, CQ, SA, PK, etc.)")
 
     return resolved_cards
 
