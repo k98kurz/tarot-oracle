@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tarot_oracle.tarot import SemanticAdapter, SpreadLoader, Card
 from tarot_oracle.loaders import SpreadLoader as SpreadLoaderClass
-from tarot_oracle.exceptions import SpreadError
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 class TestSemanticAdapter(unittest.TestCase):
@@ -74,8 +74,8 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
         try:
             result = loader._validate_spread_config(valid_config, 'test_path')
             assert result is not None
-        except (ValueError, SpreadError):
-            self.fail("Valid matrix layout should not raise ValueError or SpreadError")
+        except ValueError:
+            self.fail("Valid matrix layout should not raise ValueError")
 
         # Invalid layout (mixed types)
         invalid_config = {
@@ -83,7 +83,7 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
             'semantics': [['${fire}', 123]]
         }
 
-        with self.assertRaises(SpreadError) as cm:
+        with self.assertRaises(ValueError) as cm:
             loader._validate_spread_config(invalid_config, 'test_path')
             assert "must be a string or null" in str(cm.exception), "Error should mention type requirement"
 
@@ -101,8 +101,8 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
         try:
             result = loader._validate_spread_config(valid_config, 'test_path')
             assert result is not None
-        except (ValueError, SpreadError):
-            self.fail("Valid semantics matrix should not raise ValueError or SpreadError")
+        except ValueError:
+            self.fail("Valid semantics matrix should not raise ValueError")
 
         # Invalid semantics (wrong type in cell)
         invalid_config = {
@@ -111,7 +111,7 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
             'semantics': [['${fire}', 123]]
         }
 
-        with self.assertRaises(SpreadError) as cm:
+        with self.assertRaises(ValueError) as cm:
             loader._validate_spread_config(invalid_config, 'test_path')
 
     def test_variable_placeholder_validation(self):
@@ -128,8 +128,8 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
         try:
             result = loader._validate_spread_config(valid_config, 'test_path')
             assert result is not None
-        except (ValueError, SpreadError):
-            self.fail("Valid variable placeholders should not raise ValueError or SpreadError")
+        except ValueError:
+            self.fail("Valid variable placeholders should not raise ValueError")
 
         # Invalid variable
         invalid_config = {
@@ -138,7 +138,7 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
             'semantics': [['${fire}', '${invalid_var}']]
         }
 
-        with self.assertRaises(SpreadError) as cm:
+        with self.assertRaises(ValueError) as cm:
             loader._validate_spread_config(invalid_config, 'test_path')
             assert "Invalid variable placeholder" in str(cm.exception), "Error should mention invalid variable"
 

@@ -82,7 +82,6 @@ class TestLoaders(unittest.TestCase):
     def test_spread_validation(self):
         """Test spread configuration validation."""
         from tarot_oracle.loaders import SpreadLoader
-        from tarot_oracle.exceptions import SpreadError
         loader = SpreadLoader()
 
         # Test valid configuration
@@ -103,13 +102,13 @@ class TestLoaders(unittest.TestCase):
         exception_caught = False
         try:
             loader._validate_spread_config(invalid_config, "test")
-        except SpreadError as e:
+        except ValueError as e:
             exception_caught = True
             assert "name" in str(e), f"Error message should mention missing name, got: {e}"
         except Exception as e:
-            self.fail(f"Expected SpreadError, got {type(e).__name__}: {e}")
+            self.fail(f"Expected ValueError, got {type(e).__name__}: {e}")
 
-        assert exception_caught, "SpreadError should have been raised for missing name"
+        assert exception_caught, "ValueError should have been raised for missing name"
 
         # Test invalid semantic variable
         invalid_semantic = {
@@ -122,11 +121,11 @@ class TestLoaders(unittest.TestCase):
         semantic_exception_caught = False
         try:
             loader._validate_spread_config(invalid_semantic, "test")
-        except SpreadError as e:
+        except ValueError as e:
             semantic_exception_caught = True
             assert "invalid" in str(e), f"Error message should mention invalid variable, got: {e}"
         except Exception as e:
-            self.fail(f"Expected SpreadError for semantic validation, got {type(e).__name__}: {e}")
+            self.fail(f"Expected ValueError for semantic validation, got {type(e).__name__}: {e}")
 
         # Note: semantic validation might not be implemented yet
         # If no exception is raised, that's ok for now

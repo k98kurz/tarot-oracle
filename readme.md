@@ -207,7 +207,6 @@ tarot_oracle/
 ├── oracle.py           # AI integration and interpretation
 ├── config.py           # Configuration management
 ├── loaders.py          # Custom content loaders
-├── exceptions.py       # Custom exception classes
 ├── cli.py              # Unified CLI interface
 ├── roman_numerals.py   # Utility functions
 └── messages.py         # Message formatting

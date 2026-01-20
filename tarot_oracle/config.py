@@ -44,7 +44,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
-from tarot_oracle.exceptions import ConfigError
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 class Config:
@@ -115,7 +115,7 @@ class Config:
                 # Log error but continue with defaults
                 print(f"Warning: Could not load config file: {e}")
             except Exception as e:
-                raise ConfigError(f"Unexpected error loading configuration: {e}", config_path=str(self.config_file))
+                raise ValueError(f"Unexpected error loading configuration: {e} (config_path: {self.config_file})")
 
     def _load_env_vars(self) -> None:
         """Load configuration from environment variables."""
@@ -143,7 +143,7 @@ class Config:
             except OSError as e:
                 print(f"Error creating directory {directory}: {e}")
             except Exception as e:
-                raise ConfigError(f"Unexpected error creating directory {directory}: {e}", config_path=str(self.config_file))
+                raise ValueError(f"Unexpected error creating directory {directory}: {e} (config_path: {self.config_file})")
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value."""
@@ -160,9 +160,9 @@ class Config:
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, indent=2)
         except OSError as e:
-            raise ConfigError(f"Error saving config file: {e}", config_path=str(self.config_file))
+            raise ValueError(f"Error saving config file: {e} (config_path: {self.config_file})")
         except Exception as e:
-            raise ConfigError(f"Unexpected error saving configuration: {e}", config_path=str(self.config_file))
+            raise ValueError(f"Unexpected error saving configuration: {e} (config_path: {self.config_file})")
 
     @property
     def provider(self) -> str:

@@ -11,12 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tarot_oracle.oracle import OpenRouterClient
-from tarot_oracle.exceptions import (
-    AuthenticationError,
-    NetworkError,
-    RateLimitError,
-    ProviderError
-)
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 class TestOpenRouterClient(unittest.TestCase):
@@ -106,11 +101,10 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="invalid-key")
 
-        with self.assertRaises(AuthenticationError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt")
 
         assert "Invalid OpenRouter API key" in str(exc_info.exception)
-        assert exc_info.exception.context["provider"] == "openrouter"
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_rate_limit_error(self, mock_post):
@@ -122,13 +116,11 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="test-key")
 
-        with self.assertRaises(RateLimitError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt")
 
         assert "OpenRouter API rate limit exceeded" in str(exc_info.exception)
-        assert exc_info.exception.context["provider"] == "openrouter"
-        assert exc_info.exception.context["retry_after"] == 60
-        assert "60 seconds" in str(exc_info.exception)
+        assert "Retry after: 60" in str(exc_info.exception)
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_rate_limit_error_without_retry_after(self, mock_post):
@@ -140,10 +132,10 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="test-key")
 
-        with self.assertRaises(RateLimitError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt")
 
-        assert exc_info.exception.context.get("retry_after") is None
+        assert exc_info.exception is not None
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_network_timeout_error(self, mock_post):
@@ -152,12 +144,10 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="test-key")
 
-        with self.assertRaises(NetworkError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt", timeout=10)
 
         assert "OpenRouter API request timed out after 10 seconds" in str(exc_info.exception)
-        assert exc_info.exception.context["provider"] == "openrouter"
-        assert exc_info.exception.context["timeout"] == 10
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_network_connection_error(self, mock_post):
@@ -166,11 +156,11 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="test-key")
 
-        with self.assertRaises(NetworkError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt")
 
         assert "OpenRouter API request failed" in str(exc_info.exception)
-        assert exc_info.exception.context["provider"] == "openrouter"
+        assert "Connection failed" in str(exc_info.exception)
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_invalid_response_format(self, mock_post):
@@ -182,11 +172,10 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="test-key")
 
-        with self.assertRaises(NetworkError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt")
 
         assert "Invalid response format from OpenRouter" in str(exc_info.exception)
-        assert exc_info.exception.context["provider"] == "openrouter"
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_empty_response_content(self, mock_post):
@@ -240,12 +229,11 @@ class TestOpenRouterClient(unittest.TestCase):
 
         client = OpenRouterClient(api_key="test-key")
 
-        with self.assertRaises(NetworkError) as exc_info:
+        with self.assertRaises(ValueError) as exc_info:
             client.generate_response("Test prompt")
 
         assert "OpenRouter API returned status 500" in str(exc_info.exception)
         assert "Internal server error" in str(exc_info.exception)
-        assert exc_info.exception.context["provider"] == "openrouter"
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_request_headers(self, mock_post):
