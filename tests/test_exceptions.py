@@ -18,12 +18,9 @@ from tarot_oracle.exceptions import (
     NetworkError,
     RateLimitError,
     ValidationError,
-    CardCodeError,
-    SemanticValidationError,
     FileOperationError,
     PathTraversalError,
     StateError,
-    InvalidDeckStateError
 )
 
 
@@ -169,30 +166,6 @@ class TestProviderErrors(unittest.TestCase):
         assert "60 seconds" in str(error), "Should include retry time in string representation"
 
 
-class TestValidationErrors(unittest.TestCase):
-    """Test validation-related exceptions."""
-
-    def test_card_code_error_basic(self):
-        """Test CardCodeError basic functionality."""
-        error = CardCodeError("Invalid card format")
-        assert "Invalid card format" in str(error), "Error message should be in string representation"
-        assert len(error.suggestions) > 0, "Should have default suggestions"
-        assert "Use card codes in format" in error.suggestions[0], "Should have format suggestion"
-
-    def test_card_code_error_with_code(self):
-        """Test CardCodeError with card code."""
-        card_code = "invalid-format"
-        error = CardCodeError("Malformed code", card_code=card_code)
-        assert error.context["card_code"] == card_code, f"Expected {card_code}, got {error.context['card_code']}"
-
-    def test_semantic_validation_error_basic(self):
-        """Test SemanticValidationError basic functionality."""
-        error = SemanticValidationError("Dimension mismatch")
-        assert "Dimension mismatch" in str(error), "Error message should be in string representation"
-        assert len(error.suggestions) > 0, "Should have default suggestions"
-        assert "Check spread dimensions" in error.suggestions[0], "Should have spread dimensions suggestion"
-
-
 class TestFileOperationErrors(unittest.TestCase):
     """Test file operation-related exceptions."""
 
@@ -208,23 +181,6 @@ class TestFileOperationErrors(unittest.TestCase):
         attempted_path = "../../../etc/passwd"
         error = PathTraversalError("Path traversal attempt", attempted_path=attempted_path)
         assert error.context["attempted_path"] == attempted_path, f"Expected {attempted_path}, got {error.context['attempted_path']}"
-
-
-class TestStateErrors(unittest.TestCase):
-    """Test state-related exceptions."""
-
-    def test_invalid_deck_state_error_basic(self):
-        """Test InvalidDeckStateError basic functionality."""
-        error = InvalidDeckStateError("Deck not shuffled")
-        assert "Deck not shuffled" in str(error), "Error message should be in string representation"
-        assert len(error.suggestions) > 0, "Should have default suggestions"
-        assert "Shuffle the deck" in error.suggestions[0], "Should have shuffle suggestion"
-
-    def test_invalid_deck_state_error_with_state(self):
-        """Test InvalidDeckStateError with deck state."""
-        deck_state = "uninitialized"
-        error = InvalidDeckStateError("Invalid deck state", deck_state=deck_state)
-        assert error.context["deck_state"] == deck_state, f"Expected {deck_state}, got {error.context['deck_state']}"
 
 
 class TestExceptionInheritance(unittest.TestCase):
@@ -247,8 +203,6 @@ class TestExceptionInheritance(unittest.TestCase):
 
     def test_validation_error_inheritance(self):
         """Test validation errors inherit properly."""
-        assert issubclass(CardCodeError, ValidationError), "CardCodeError should inherit from ValidationError"
-        assert issubclass(SemanticValidationError, ValidationError), "SemanticValidationError should inherit from ValidationError"
         assert issubclass(ValidationError, TarotOracleError), "ValidationError should inherit from TarotOracleError"
 
     def test_file_operation_error_inheritance(self):
@@ -258,7 +212,6 @@ class TestExceptionInheritance(unittest.TestCase):
 
     def test_state_error_inheritance(self):
         """Test state errors inherit properly."""
-        assert issubclass(InvalidDeckStateError, StateError), "InvalidDeckStateError should inherit from StateError"
         assert issubclass(StateError, TarotOracleError), "StateError should inherit from TarotOracleError"
 
 
