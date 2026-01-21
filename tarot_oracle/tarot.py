@@ -138,15 +138,6 @@ _air = 'Psychic Basis/Mutable Influences (Air)'
 _fire = 'Karmic Forces/Cosmic Influences (Fire)'
 _spirit = 'Nature of Circumstances (Spirit)'
 
-# Variable definitions for semantic placeholders
-VARIABLE_DEFINITIONS = {
-    'water': 'Emotional Basis/Subconscious Influences (Water)',
-    'fire': 'Karmic Forces/Cosmic Influences (Fire)', 
-    'air': 'Psychic Basis/Mutable Influences (Air)',
-    'earth': 'Material/Foundation/Practical Influences (Earth)',
-    'spirit': 'Nature of Circumstances/Divine Will (Spirit)'
-}
-
 SEMANTICS = {
     '3-card': [['Past/Querent/Situation/Idea', 'Present/Path/Action/Process', 'Future/Potential/Outcome/Aspiration']],
     'cross': [
@@ -285,39 +276,10 @@ class DeckLoader:
 
 @dataclass
 class Card:
-    """Represents a single tarot card with metadata and interpretation data.
-    
-    Stores all information about a tarot card including its classification,
-    interpretation keywords, and reversal state. Supports both major and
-    minor arcana with full keyword support for upright and reversed positions.
-    
-    Attributes:
-        name (str): Display name of the card (e.g., "The Fool", "Ace of Cups")
-        card_type (str): Type of card - either 'major' or 'minor'
-        suit (str | None): Suit for minor arcana - 'W' (Wands), 'C' (Cups), 
-            'S' (Swords), 'P' (Pentacles), or None for major arcana
-        value (str): Card value - Roman numeral for major arcana, 
-            numeric/face card for minor arcana
-        keywords (str): Interpretation keywords for upright position
-        reversed_keywords (str | None): Interpretation keywords for reversed position
-        is_reversed (bool): Whether card is drawn reversed (set during reading)
-    
-    Example:
-        >>> # Create major arcana card
-        >>> fool = Card("The Fool", "major", None, "0", 
-        ...            keywords="Beginnings, innocence, freedom")
-        >>> print(fool.name)  # "The Fool"
-        >>> 
-        >>> # Create minor arcana card
-        >>> ace_cups = Card("Ace of Cups", "minor", "C", "A", 
-        ...                 keywords="New love, emotion, intuition")
-        >>> ace_cups.is_reversed = True
-        >>> print(ace_cups.get_keywords())  # Reversed keywords if available
-        
-        >>> # Get notation for display
-        >>> print(ace_cups.get_notation())  # "ace-cups"
-        >>> print(fool.get_notation())     # "0-the-fool"
-    """
+    """Represents a single tarot card with metadata and keywords.
+
+    Stores classification (major/minor), suit, value, and interpretation keywords.
+    Supports upright and reversed positions. Reversal state set during reading."""
     name: str
     card_type: str  # 'major' or 'minor'
     suit: str|None  # W, C, S, P or None for major arcana
@@ -364,37 +326,9 @@ class DeterministicRNG:
 
 class Deck:
     """Tarot deck with card loading and shuffling functionality.
-    
-    Manages a complete tarot deck with support for both standard Rider-Waite
-    cards and custom deck configurations. Provides secure shuffling, card
-    drawing, and reversal assignment functionality.
-    
-    Features:
-        - Support for custom deck configurations via JSON
-        - Secure deterministic shuffling using seed values
-        - Reversed card assignment for enhanced readings
-        - Card drawing without replacement
-        - Full validation of deck configurations
-    
-    Attributes:
-        cards (list[Card]): Ordered list of cards in the deck (unshuffled)
-        shuffled (list[Card]): Shuffled list of cards available for drawing
-    
-    Example:
-        >>> # Create standard deck
-        >>> deck = Deck()
-        >>> deck.shuffle(seed=42)
-        >>> card = deck.draw_cards(1)[0]
-        >>> print(card.name)
-        
-        >>> # Create custom deck
-        >>> custom_deck = Deck("/path/to/custom-deck.json")
-        >>> custom_deck.shuffle_and_assign_reversals(seed=123, allow_reversed=True)
-        >>> cards = custom_deck.draw_cards(3)
-        
-        >>> # Reset deck
-        >>> deck.shuffle()  # New shuffle, full deck restored
-    """
+
+    Creates standard 78-card deck or loads custom JSON configurations.
+    Provides deterministic shuffling with optional reversed card assignment."""
 
     def __init__(self, deck_path: str | None = None) -> None:
         self.cards = []
@@ -518,38 +452,10 @@ class Deck:
 
 
 class SpreadRenderer:
-    """Renders tarot spreads in terminal ASCII format.
-    
-    Provides multiple rendering formats for tarot spreads including terminal
-    ASCII layouts, JSON output, and semantic legends. Supports both simple
-    card notation and enhanced display with position information.
-    
-    Features:
-        - Terminal ASCII rendering for console output
-        - JSON output for programmatic consumption
-        - Semantic legend generation
-        - Support for matrix and linear spread layouts
-        - Enhanced notation with reversal support
-        - Position-based card formatting
-    
-    Example:
-        >>> cards = [card1, card2, card3]  # List of Card objects
-        >>> layout = [[0], [1], [2]]      # Simple 3-card layout
-        >>> 
-        >>> # Terminal rendering
-        >>> renderer = SpreadRenderer()
-        >>> ascii_output = renderer.render_spread(cards, layout)
-        >>> print(ascii_output)
-        >>> 
-        >>> # JSON rendering
-        >>> json_output = renderer.render_json(cards, layout)
-        >>> import json
-        >>> print(json.dumps(json_output, indent=2))
-        >>> 
-        >>> # Legend only
-        >>> legend = renderer.render_legend(cards, layout)
-        >>> print(legend)
-    """
+    """Renders tarot spreads in terminal ASCII, JSON, and semantic legend formats.
+
+    Supports matrix and linear layouts with position-based formatting and reversal notation.
+    Outputs card notation with keywords for display or programmatic consumption."""
 
     @staticmethod
     def format_card_simple(card: Card) -> str:
@@ -865,30 +771,10 @@ class SemanticAdapter:
 
 
 class TarotDivination:
-    """Main orchestrator for tarot divination.
+    """Main orchestrator for tarot divination readings.
 
-    Provides the primary interface for performing tarot readings with
-    support for custom decks, semantic groupings, and JSON/ASCII output.
-    Handles the full reading workflow from question to final output.
-
-    Features:
-        - Support for standard and custom tarot decks
-        - Deterministic card drawing using cryptographic seeds
-        - Multiple spread types (3-card, Celtic Cross, custom spreads)
-        - Semantic groupings with variable placeholder resolution
-        - JSON and ASCII output formats
-        - Reversed card support
-        - Custom invocation integration
-
-    Attributes:
-        deck (Deck): The tarot deck used for readings
-
-    Example:
-        >>> tarot = TarotDivination()
-        >>> spread, legend = tarot.perform_reading("What does the future hold?", "3-card")
-        >>> print(spread)
-        >>> print(legend)
-    """
+    Handles deck management, card drawing with cryptographic seeds, and spread processing.
+    Returns structured output for ASCII display or JSON export with semantic groupings."""
 
     def __init__(self, deck_path: str | None = None) -> None:
         self.deck = Deck(deck_path)

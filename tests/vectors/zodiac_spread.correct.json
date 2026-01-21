@@ -1,7 +1,7 @@
 {
-  "name": "Zodiac (12-card)",
+  "name": "zodiac",
   "description": "12 card Zodiac spread: 1 for each astrological house",
-  "positions": [
+  "layout": [
     [0, 0,  0,  10, 0,  0,  0],
     [0, 0,  11, 0,  9,  0,  0],
     [0, 12, 0,  0,  0,  8,  0],

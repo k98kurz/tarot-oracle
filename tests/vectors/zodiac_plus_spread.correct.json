@@ -1,7 +1,7 @@
 {
-  "name": "Zodiac Plus (13-card)",
+  "name": "zodiac+",
   "description": "13 card Zodiac spread: 1 for each astrological house + central theme",
-  "positions": [
+  "layout": [
     [0, 0,  0,  10, 0,  0,  0],
     [0, 0,  11, 0,  9,  0,  0],
     [0, 12, 0,  0,  0,  8,  0],
