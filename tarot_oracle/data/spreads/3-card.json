@@ -1,0 +1,6 @@
+{
+  "name": "3-card",
+  "description": "Past, Present, Future",
+  "layout": [[2, 1, 3]],
+  "semantics": [["Past/Querent/Situation/Idea", "Present/Path/Action/Process", "Future/Potential/Outcome/Aspiration"]]
+}

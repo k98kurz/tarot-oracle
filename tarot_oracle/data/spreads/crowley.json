@@ -1,0 +1,21 @@
+{
+  "name": "crowley",
+  "description": "Thoth deck style 21-card astrological spread",
+  "layout": [
+    [13, 9, 5, 0, 4, 8, 12],
+    [0, 0, 2, 1, 3, 0, 0],
+    [14, 10, 6, 0, 7, 11, 15]
+  ],
+  "semantic_groups": {
+    "earth" : "Potential Future/Natural Path (Earth)",
+    "water" : "Far/Alternate Future Path (Water)",
+    "air" : "Psychic Basis/Mutable Influences (Air)",
+    "fire" : "Karmic Forces/Cosmic Influences (Fire)",
+    "spirit" : "Nature of Circumstances (Spirit)"
+  },
+  "semantics": [
+    ["${water}",  "${water}",  "${water}",  "",  "${earth}",  "${earth}", "${earth}"],
+    [ "",  "",  "${spirit}",  "Querent/Present (Spirit)",  "${spirit}",  "",  ""],
+    ["${air}", "${air}",  "${air}",  "",  "${fire}", "${fire}", "${fire}"]
+  ]
+}

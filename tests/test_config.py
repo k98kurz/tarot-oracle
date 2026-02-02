@@ -1,13 +1,12 @@
-"""Test configuration management for Tarot Oracle."""
-
-import unittest
-import os
-import tempfile
-import json
 from pathlib import Path
 from unittest.mock import patch
 
+import json
+import os
 import sys
+import tempfile
+import unittest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tarot_oracle.config import Config
@@ -51,7 +50,7 @@ class TestConfig(unittest.TestCase):
                     "default_spread": "three_card"
                 }
 
-                with open(config_file, 'w') as f:
+                with open(config_file, 'w', encoding='utf-8') as f:
                     json.dump(test_config, f)
 
                 config = Config()

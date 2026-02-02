@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 
-from secrets import token_bytes
-from hashlib import sha256
-from sys import argv, stdin
 from argparse import ArgumentParser
 from dataclasses import dataclass
+from hashlib import sha256
+from pathlib import Path
+from secrets import token_bytes
+from sys import argv, stdin
 from time import time
+from typing import Any, NoReturn, cast
+
+from tarot_oracle.config import config
+from tarot_oracle.data_loader import BundledDataLoader
+from tarot_oracle.loaders import SpreadLoader
+
 import ast
 import json
 import os
-from pathlib import Path
-from typing import Any, NoReturn, cast
-from tarot_oracle.config import config
-from tarot_oracle.loaders import SpreadLoader
+import re
+
 # Custom exceptions removed - using standard TypeError and ValueError instead
 
 
@@ -159,28 +164,15 @@ SEMANTICS = {
 }
 
 
-def resolve_variables(text: str) -> str:
-    """Replace variable placeholders like ${fire} with their definitions."""
-    for var_name, definition in VARIABLE_DEFINITIONS.items():
-        placeholder = f"${{{var_name}}}"
-        text = text.replace(placeholder, definition)
-    return text
-
-
 class DeckLoader:
     """Handles loading and management of tarot deck configurations."""
 
     def resolve_deck_path(self, filename: str) -> str | None:
-        """Resolve deck filename using search order with security validation:
-        1. ./{filename}
-        2. ./{filename}.json
-        3. ~/.tarot-oracle/decks/{filename}
-        4. ~/.tarot-oracle/decks/{filename}.json
+        """Resolve deck filename using search order with security validation from
+            current directory and ~/.tarot-oracle/decks/, returning None if
+            not found or invalid.
         """
-        from tarot_oracle.config import config
-        
         # Sanitize filename to prevent path traversal
-        import re
         safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
         safe_filename = safe_filename.lstrip('.-')
         if not safe_filename:
@@ -230,7 +222,6 @@ class DeckLoader:
 
     def list_available_decks(self) -> list[dict[str, str]]:
         """Scan ~/.tarot-oracle/decks/ and return deck metadata."""
-        from tarot_oracle.config import config
         decks_dir = config.decks_dir
 
         if not decks_dir.exists() or not decks_dir.is_dir():
@@ -256,16 +247,8 @@ class DeckLoader:
         return decks
 
     def load_deck(self, deck_name: str) -> "Deck":
-        """Load a deck by name using search order and return a Deck instance.
-        
-        Args:
-            deck_name: Name of deck to load (without .json extension)
-            
-        Returns:
-            Deck: Loaded deck instance
-            
-        Raises:
-            ValueError: If deck file is not found or invalid
+        """Load deck by name using search order. Returns loaded deck instance,
+            raises ValueError if not found.
         """
         deck_path = self.resolve_deck_path(deck_name)
         if deck_path is None:
@@ -337,7 +320,11 @@ class Deck:
         if deck_path:
             self.cards = self._load_custom_deck(deck_path)
         else:
-            self.cards = self._create_deck()
+            bundled_deck = BundledDataLoader.load_deck("rider-waite")
+            if bundled_deck:
+                self.cards = self._load_custom_deck_from_config(bundled_deck)
+            else:
+                self.cards = self._create_deck()
 
     def _load_custom_deck(self, deck_path: str) -> list[Card]:
         """Load deck from JSON configuration file."""
@@ -384,6 +371,54 @@ class Deck:
                     reversed_keywords=reversed_keywords
                 )
                 cards.append(card)
+
+        if not cards:
+            raise ValueError("No valid cards found in deck configuration")
+
+        return cards
+
+    @staticmethod
+    def _load_custom_deck_from_config(config: dict[str, Any]) -> list[Card]:
+        """Load deck from configuration dictionary (used for bundled decks)."""
+        cards = []
+
+        if 'major_arcana' in config:
+            for card_data in config['major_arcana']:
+                name = card_data.get('name', 'Unknown')
+                value = card_data.get('value', '0')
+                keywords = card_data.get('keywords', '')
+                reversed_keywords = card_data.get('reversed_keywords')
+
+                card = Card(
+                    name=name,
+                    card_type='major',
+                    suit=None,
+                    value=value,
+                    keywords=keywords,
+                    reversed_keywords=reversed_keywords
+                )
+                cards.append(card)
+
+        if 'minor_arcana' in config:
+            for suit_name, suit_cards in config['minor_arcana'].items():
+                suit_letter = {'wands': 'W', 'cups': 'C', 'swords': 'S', 'pentacles': 'P'}.get(suit_name.lower())
+                if not suit_letter:
+                    continue
+                for card_data in suit_cards:
+                    value = card_data.get('value', '0')
+                    name = card_data.get('name', f"{value} of {suit_name}")
+                    keywords = card_data.get('keywords', '')
+                    reversed_keywords = card_data.get('reversed_keywords')
+
+                    card = Card(
+                        name=name,
+                        card_type='minor',
+                        suit=suit_letter,
+                        value=value,
+                        keywords=keywords,
+                        reversed_keywords=reversed_keywords
+                    )
+                    cards.append(card)
 
         if not cards:
             raise ValueError("No valid cards found in deck configuration")
@@ -617,10 +652,11 @@ class SpreadRenderer:
 
     @staticmethod
     def render_semantic_legend(cards: list[Card], layout: list[list[int]],
-                           semantics: list[list[str]]|None = None,
-                           include_keywords: bool = False) -> str:
+                               semantics: list[list[str]]|None = None,
+                               semantic_groups: dict[str, str]|None = None,
+                               include_keywords: bool = False) -> str:
         """Render legend with semantic groupings."""
-        adapter = SemanticAdapter(layout, cards, semantics)
+        adapter = SemanticAdapter(layout, cards, semantics, semantic_groups)
         return adapter.render_semantic_legend(include_keywords)
 
     @staticmethod
@@ -639,17 +675,23 @@ class SpreadRenderer:
 class SemanticAdapter:
     """Maps cards to semantic meanings based on spread position."""
 
-    def __init__(self, layout: list[list[int]], cards: list[Card], semantics: list[list[str]]|None = None) -> None:
-        """Initialize adapter with layout, cards, and semantics.
-
-        Args:
-            layout: Card position layout matrix
-            cards: List of drawn cards
-            semantics: Optional semantics matrix with variable placeholders
+    def __init__(self, layout: list[list[int]], cards: list[Card],
+                 semantics: list[list[str]]|None = None,
+                 semantic_groups: dict[str, str]|None = None) -> None:
+        """Initialize adapter with layout, cards, semantics matrix, and optional
+            semantic_groups for variable placeholder resolution.
         """
         self.layout = layout
         self.cards = cards
+        self.semantic_groups = semantic_groups or {}
         self.semantics = self._process_semantics(semantics) if semantics else []
+
+    def resolve_variables(self, text: str) -> str:
+        """Replace variable placeholders like ${cap} with semantic_group definitions."""
+        for var_name, definition in self.semantic_groups.items():
+            placeholder = f"${{{var_name}}}"
+            text = text.replace(placeholder, definition)
+        return text
 
     def _process_semantics(self, semantics: list[list[str]]) -> list[list[str]]:
         """Resolve variable placeholders in semantics."""
@@ -658,7 +700,7 @@ class SemanticAdapter:
             resolved_row = []
             for cell in row:
                 if isinstance(cell, str):
-                    resolved_cell = resolve_variables(cell)
+                    resolved_cell = self.resolve_variables(cell)
                 else:
                     resolved_cell = cell
                 resolved_row.append(resolved_cell)
@@ -764,7 +806,7 @@ class SemanticAdapter:
 
         guidance = []
         for guidance_text in semantic_config['guidance']:
-            resolved = resolve_variables(guidance_text)
+            resolved = self.resolve_variables(guidance_text)
             if resolved:
                 guidance.append(f"- {resolved}")
         return guidance
@@ -841,10 +883,8 @@ class TarotDivination:
 
     def perform_reading(self, question: str, spread_input: str, invocation: str|None = None,
                         random_bytes: int = 0, allow_reversed: bool = False, show_descriptions: bool = True) -> tuple[str, str]:
-        """Perform tarot reading with semantic groupings.
-
-        Returns:
-            Tuple of (spread_display, legend_display)
+        """Perform tarot reading with semantic groupings and return tuple of
+            (spread_display, legend_display).
         """
         # Resolve spread with semantic configuration
         layout, semantic_config = resolve_spread(spread_input)
@@ -863,13 +903,17 @@ class TarotDivination:
         # Get semantics matrix
         if semantic_config and 'semantics' in semantic_config:
             semantics_matrix = semantic_config['semantics']
+        elif spread_input in SEMANTICS:
+            # Fallback to hardcoded SEMANTICS for legacy spreads
+            semantics_matrix = SEMANTICS.get(spread_input)
         else:
-            # Built-in spread - get from SEMANTICS dict
-            spread_type = spread_input if spread_input in SPREADS else 'unknown'
-            semantics_matrix = SEMANTICS.get(spread_type)
+            semantics_matrix = None
+
+        # Get semantic_groups from semantic_config
+        semantic_groups = semantic_config.get('semantic_groups') if semantic_config else None
 
         # Use semantic adapter for legend
-        adapter = SemanticAdapter(normalized_layout, drawn_cards, semantics_matrix)
+        adapter = SemanticAdapter(normalized_layout, drawn_cards, semantics_matrix, semantic_groups)
         legend_display = adapter.render_semantic_legend(include_keywords=show_descriptions)
 
         # Add guidance if available (custom spreads only)
@@ -881,15 +925,19 @@ class TarotDivination:
 
 
 def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|None]:
-    """Resolve spread with semantic configuration from alias, custom file, or custom matrix.
-    
-    Returns:
-        Tuple of (layout, semantic_config)
+    """Resolve spread with semantic configuration from alias, custom file, or
+        custom matrix. Returns tuple of (layout, semantic_config).
     """
-    # Check built-in spreads first
+    bundled_spread = BundledDataLoader.load_spread(spread_input)
+    if bundled_spread and 'layout' in bundled_spread:
+        layout = bundled_spread['layout']
+        semantic_config = {k: v for k, v in bundled_spread.items() if k != 'layout'}
+        return layout, semantic_config
+
+    # Check built-in spreads
     if spread_input in SPREADS:
         return SPREADS[spread_input], None
-    
+
     # Try to load custom spread
     loader = SpreadLoader()
     custom_spread = loader.load_spread(spread_input)
@@ -897,7 +945,7 @@ def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|N
         layout = custom_spread['layout']
         semantic_config = {k: v for k, v in custom_spread.items() if k != 'layout'}
         return layout, semantic_config
-    
+
     # Try to parse as custom matrix
     try:
         layout = ast.literal_eval(spread_input)
@@ -953,7 +1001,7 @@ def resolve_card_codes(codes: str) -> list[Card]:
 def create_parser() -> ArgumentParser:
     """Create command line argument parser."""
     parser = ArgumentParser(description="Tarot divination script")
-    parser.add_argument("question", nargs='?', help="Question for tarot reading (ignored with --lookup and --list-decks)")
+    parser.add_argument("question", nargs='?', help="Question for tarot reading (ignored with --lookup, --list-decks, --export-deck, and --export-spread)")
     parser.add_argument("--lookup", help="Look up card codes (CSV format, e.g., 'I,W3,C_Q,XVII')")
     parser.add_argument("--invocation", help="Custom invocation to influence reading")
     parser.add_argument("--invoke", action="store_true",
@@ -971,6 +1019,12 @@ def create_parser() -> ArgumentParser:
     parser.add_argument("--deck", help="Use custom deck configuration filename")
     parser.add_argument("--list-decks", action="store_true",
                        help="List available deck configurations")
+    parser.add_argument("--list-spreads", action="store_true",
+                       help="List available spread configurations")
+    parser.add_argument("--export-deck", metavar="NAME",
+                       help="Export a bundled deck to stdout (pipe to file to save)")
+    parser.add_argument("--export-spread", metavar="NAME",
+                       help="Export a bundled spread to stdout (pipe to file to save)")
     return parser
 
 
@@ -1000,17 +1054,61 @@ def main(args=None) -> int:
     # Handle list-decks mode
     if args.list_decks:
         deck_loader = DeckLoader()
-        decks = deck_loader.list_available_decks()
-        if not decks:
-            print(f"No deck configurations found in {config.decks_dir}/")
-            return 0
+        user_decks = deck_loader.list_available_decks()
+        bundled_decks = BundledDataLoader.list_decks()
 
-        print("Available decks:")
-        for deck in decks:
-            filename = deck['filename']
-            name = deck['name']
-            description = deck['description']
-            print(f"  {filename:<20} - {name:<20} - {description}")
+        print("Bundled decks:")
+        for deck_name in bundled_decks:
+            print(f"  {deck_name:<20} - {deck_name:<20} - (built-in)")
+
+        if user_decks:
+            print("\nUser decks:")
+            for deck in user_decks:
+                filename = deck['filename']
+                name = deck['name']
+                description = deck['description']
+                print(f"  {filename:<20} - {name:<20} - {description}")
+
+        return 0
+
+    # Handle export-deck mode
+    if args.export_deck:
+        deck_json = BundledDataLoader.export_deck(args.export_deck)
+        if deck_json:
+            print(deck_json)
+            return 0
+        else:
+            print(f"Error: Deck '{args.export_deck}' not found")
+            return 1
+
+    # Handle export-spread mode
+    if args.export_spread:
+        spread_json = BundledDataLoader.export_spread(args.export_spread)
+        if spread_json:
+            print(spread_json)
+            return 0
+        else:
+            print(f"Error: Spread '{args.export_spread}' not found")
+            return 1
+
+    # Handle list-spreads mode
+    if args.list_spreads:
+        loader = SpreadLoader()
+        user_spreads = loader.list_spreads()
+        bundled_spreads = BundledDataLoader.list_spreads()
+
+        print("Bundled spreads:")
+        for spread_name in bundled_spreads:
+            print(f"  {spread_name:<20} - (built-in)")
+
+        if user_spreads:
+            print("\nUser spreads:")
+            for spread in user_spreads:
+                filename = spread['filename']
+                name = spread['name']
+                description = spread['description']
+                print(f"  {filename:<20} - {name:<20} - {description}")
+
         return 0
 
     # Handle lookup mode
@@ -1071,7 +1169,7 @@ def main(args=None) -> int:
         print(json.dumps(json_data, indent=2, ensure_ascii=False))
     else:
         # ASCII output path
-        spread_display, legend_display = tarot.perform_reading(args.question, spread_layout, invocation, args.random, args.reversed, not args.no_keywords, args.spread)
+        spread_display, legend_display = tarot.perform_reading(args.question, args.spread, invocation, args.random, args.reversed, not args.no_keywords)
         print(f"Question: {args.question}")
         if invocation:
             print(f"Reading influenced by divine invocation")

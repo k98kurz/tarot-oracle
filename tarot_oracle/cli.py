@@ -1,60 +1,20 @@
 #!/usr/bin/env python3
 
-"""Unified CLI for Tarot Oracle system.
-
-This module provides a single command-line interface that consolidates all
-tarot-oracle functionality including divinatory readings, deck management,
-invocation handling, and spread configuration. It maintains backward
-compatibility while providing improved user experience through organized
-subcommands and comprehensive help system.
-
-Available Commands:
-- reading: Perform AI-powered tarot divination
-- deck: Manage tarot decks and perform basic readings
-- invocation: Manage custom invocations
-- spread: Manage custom spreads
-
-Example:
-    # Perform divinatory reading with interpretation
-    tarot-oracle reading "What does the future hold?" --interpret --provider gemini
-    
-    # List available decks
-    tarot-oracle deck --list
-    
-    # Use custom invocation
-    tarot-oracle reading "Should I take this opportunity?" --invocation-name hermes-thoth
-    
-    # View help for specific command
-    tarot-oracle reading --help
-"""
-
-import sys
 from argparse import ArgumentParser, Namespace
 from typing import cast
 
-# Import existing CLI modules
 from tarot_oracle.oracle import main as oracle_main
 from tarot_oracle.tarot import main as tarot_main
+
+import sys
+
 # Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 def create_unified_parser() -> ArgumentParser:
-    """Create the main unified CLI argument parser.
-    
-    Creates a comprehensive argument parser with support for multiple subcommands
-    including reading, deck management, invocation handling, and spread configuration.
-    Provides consistent help system and argument validation across all commands.
-    
-    Returns:
-        ArgumentParser: Configured argument parser with all subcommands
-        
-    Example:
-        >>> parser = create_unified_parser()
-        >>> # Parse basic reading command
-        >>> args = parser.parse_args(['reading', 'What does future hold?', '--interpret'])
-        >>> print(args.command)     # 'reading'
-        >>> print(args.question)    # 'What does future hold?'
-        >>> print(args.interpret)   # True
+    """Create the main unified CLI argument parser with support for multiple
+        subcommands including reading, deck management, and spread
+        configuration.
     """
     parser = ArgumentParser(
         prog="tarot-oracle",
@@ -109,22 +69,8 @@ def create_unified_parser() -> ArgumentParser:
 
 
 def _add_reading_arguments(parser: ArgumentParser) -> None:
-    """Add arguments for the reading subcommand.
-    
-    Configures argument parser with all options needed for AI-powered tarot
-    divination readings including AI provider selection, interpretation options,
-    spread types, and custom feature integration.
-    
-    Args:
-        parser (ArgumentParser): Argument parser to configure with reading arguments
-        
-    Example:
-        >>> parser = ArgumentParser()
-        >>> _add_reading_arguments(parser)
-        >>> args = parser.parse_args([
-        ...     'question', '--provider', 'gemini', '--interpret', 
-        ...     '--spread-type', '3-card'
-        ... ])
+    """Add arguments for the reading subcommand including AI provider,
+        interpretation options, and spread types.
     """
     # Core question and spread
     parser.add_argument("question", help="Question for the oracle")
@@ -191,19 +137,8 @@ def _add_reading_arguments(parser: ArgumentParser) -> None:
 
 
 def _add_deck_arguments(parser: ArgumentParser) -> None:
-    """Add arguments for the deck subcommand.
-    
-    Configures argument parser with options for deck management including
-    listing available decks, performing basic readings, and deck validation.
-    
-    Args:
-        parser (ArgumentParser): Argument parser to configure with deck arguments
-        
-    Example:
-        >>> parser = ArgumentParser()
-        >>> _add_deck_arguments(parser)
-        >>> args = parser.parse_args(['--list'])
-        >>> print(args.list_decks)  # True
+    """Add arguments for the deck subcommand including listing decks and
+        performing basic readings.
     """
     # Create mutually exclusive group for main operations
     operation_group = parser.add_mutually_exclusive_group(required=True)
@@ -243,19 +178,8 @@ def _add_deck_arguments(parser: ArgumentParser) -> None:
 
 
 def _add_invocation_arguments(parser: ArgumentParser) -> None:
-    """Add arguments for the invocation subcommand.
-    
-    Configures argument parser with options for invocation management including
-    listing available custom invocations and invocation file validation.
-    
-    Args:
-        parser (ArgumentParser): Argument parser to configure with invocation arguments
-        
-    Example:
-        >>> parser = ArgumentParser()
-        >>> _add_invocation_arguments(parser)
-        >>> args = parser.parse_args(['--list'])
-        >>> print(args.list_invocations)  # True
+    """Add arguments for the invocation subcommand including listing
+        available custom invocations.
     """
 
     operation_group = parser.add_mutually_exclusive_group(required=True)
@@ -272,19 +196,8 @@ def _add_invocation_arguments(parser: ArgumentParser) -> None:
 
 
 def _add_spread_arguments(parser: ArgumentParser) -> None:
-    """Add arguments for the spread subcommand.
-    
-    Configures argument parser with options for spread management including
-    listing available custom spreads and spread configuration validation.
-    
-    Args:
-        parser (ArgumentParser): Argument parser to configure with spread arguments
-        
-    Example:
-        >>> parser = ArgumentParser()
-        >>> _add_spread_arguments(parser)
-        >>> args = parser.parse_args(['--list'])
-        >>> print(args.list_spreads)  # True
+    """Add arguments for the spread subcommand including listing available
+        custom spreads.
     """
     operation_group = parser.add_mutually_exclusive_group(required=True)
 
@@ -300,41 +213,9 @@ def _add_spread_arguments(parser: ArgumentParser) -> None:
 
 
 def handle_reading_command(args: Namespace) -> int:
-    """Handle the reading subcommand using existing oracle functionality.
-    
-    Processes tarot divination requests by converting unified CLI arguments
-    to the format expected by the existing oracle module. Delegates actual
-    reading execution to the oracle's main function.
-    
-    Args:
-        args (Namespace): Parsed command-line arguments for reading command
-            Includes question, provider, spread type, interpretation options,
-            invocation settings, and session management options
-            
-    Returns:
-        int: Exit code from oracle execution (0 for success, non-zero for error)
-        
-    Raises:
-        ValueError: For any oracle-related errors during execution
-        
-    Example:
-        >>> from argparse import Namespace
-        >>> args = Namespace(
-        ...     question="What does the future hold?",
-        ...     provider="gemini",
-        ...     spread="3-card",
-        ...     interpret=True,
-        ...     invocation=None,
-        ...     invocation_name=None,
-        ...     save=False,
-        ...     no_save=False,
-        ...     save_path=None,
-        ...     timeout=None,
-        ...     model=None,
-        ...     api_key=None,
-        ...     ollama_host=None
-        ... )
-        >>> exit_code = handle_reading_command(args)
+    """Handle the reading subcommand using existing oracle functionality,
+        converting unified CLI arguments to oracle format and returning
+        exit code.
     """
     # Convert unified args to oracle args format
     oracle_args = [args.question, "--spread", args.spread, "--provider", args.provider]
@@ -418,31 +299,8 @@ def handle_deck_command(args: Namespace) -> int:
 
 
 def handle_invocation_command(args: Namespace) -> int:
-    """Handle the invocation subcommand.
-    
-    Processes invocation management requests including listing available
-    custom invocations and displaying their metadata. Uses the InvocationLoader
-    to securely load and manage invocation files.
-    
-    Args:
-        args (Namespace): Parsed command-line arguments for invocation command
-            Includes list_invocations and related options
-            
-    Returns:
-        int: Exit code (0 for success, non-zero for error)
-        
-    Raises:
-        ValueError: For any invocation-related errors during execution
-        
-    Example:
-        >>> from argparse import Namespace
-        >>> args = Namespace(list_invocations=True)
-        >>> exit_code = handle_invocation_command(args)
-        >>> 
-        >>> # Example output:
-        >>> # Available invocations:
-        >>> #   hermes-thoth - Guide of souls and communicator between realms
-        >>> #   aphrodite-venus - Love, beauty, and creative inspiration
+    """Handle invocation subcommand using InvocationLoader to list and manage
+        invocation files, returning exit code.
     """
     from tarot_oracle.loaders import InvocationLoader
 
@@ -473,32 +331,8 @@ def handle_invocation_command(args: Namespace) -> int:
 
 
 def handle_spread_command(args: Namespace) -> int:
-    """Handle the spread subcommand.
-    
-    Processes spread management requests including listing available
-    custom spreads and displaying their metadata. Uses the SpreadLoader
-    to securely load and manage spread configurations.
-    
-    Args:
-        args (Namespace): Parsed command-line arguments for spread command
-            Includes list_spreads and related options
-            
-    Returns:
-        int: Exit code (0 for success, non-zero for error)
-        
-    Raises:
-        ValueError: For any spread-related errors during execution
-        
-    Example:
-        >>> from argparse import Namespace
-        >>> args = Namespace(list_spreads=True)
-        >>> exit_code = handle_spread_command(args)
-        >>> 
-        >>> # Example output:
-        >>> # Available spreads:
-        >>> #   celtic-cross - Traditional 10-card spread for comprehensive readings
-        >>> #   3-card - Simple past, present, future reading
-        >>> #   zodiac-plus - Enhanced zodiac spread with elemental analysis
+    """Handle the spread subcommand using SpreadLoader to list and manage
+        spread configurations, returning exit code.
     """
     from tarot_oracle.loaders import SpreadLoader
 
@@ -530,35 +364,8 @@ def handle_spread_command(args: Namespace) -> int:
 
 
 def main(args: list[str] | None = None) -> int:
-    """Main entry point for unified CLI.
-    
-    Processes command-line arguments and dispatches to appropriate command
-    handlers. Provides a single entry point for all tarot-oracle functionality
-    including divinatory readings, deck management, invocation handling, and
-    spread configuration.
-    
-    Args:
-        args (list[str] | None): Command-line arguments. If None, uses sys.argv.
-            Should include the program name as first element when provided.
-            
-    Returns:
-        int: Exit code (0 for success, non-zero for error)
-        
-    Raises:
-        ValueError: For any command execution errors
-        
-    Example:
-        >>> # Direct call with arguments
-        >>> exit_code = main(['tarot-oracle', 'reading', 'What does future hold?', '--interpret'])
-        >>> 
-        >>> # Using sys.argv (normal CLI usage)
-        >>> # tarot-oracle reading "Should I take this opportunity?" --provider gemini
-        >>> 
-        >>> # List available decks
-        >>> exit_code = main(['tarot-oracle', 'deck', '--list'])
-        >>> 
-        >>> # Show help
-        >>> exit_code = main(['tarot-oracle', '--help'])
+    """Main entry point for unified CLI, processing command-line arguments
+        and dispatching to appropriate command handlers, returning exit code.
     """
     parser = create_unified_parser()
 

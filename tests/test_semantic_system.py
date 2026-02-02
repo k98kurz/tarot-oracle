@@ -17,10 +17,18 @@ class TestSemanticAdapter(unittest.TestCase):
 
     def test_variable_resolution(self):
         """Test variable placeholder resolution."""
-        from tarot_oracle.tarot import resolve_variables
+        from tarot_oracle.tarot import SemanticAdapter, Card
 
         text = "This is ${fire} and ${water} working with ${spirit}"
-        resolved = resolve_variables(text)
+        
+        semantic_groups = {
+            'fire': 'Karmic Forces/Cosmic Influences (Fire)',
+            'water': 'Emotional Basis/Subconscious Influences (Water)',
+            'spirit': 'Nature of Circumstances/Divine Will (Spirit)'
+        }
+        
+        adapter = SemanticAdapter([[1, 2]], [Card('Test', 'major', None, '0', 'Test')], None, semantic_groups)
+        resolved = adapter.resolve_variables(text)
 
         assert "Karmic Forces/Cosmic Influences (Fire)" in resolved
         assert "Emotional Basis/Subconscious Influences (Water)" in resolved
@@ -32,6 +40,11 @@ class TestSemanticAdapter(unittest.TestCase):
             'name': 'Test Spread',
             'layout': [[1, 2, 3]],
             'semantics': [['${fire}', '${water}', '${air}']],
+            'semantic_groups': {
+                'fire': 'Karmic Forces/Cosmic Influences (Fire)',
+                'water': 'Emotional Basis/Subconscious Influences (Water)',
+                'air': 'Psychic Basis/Mutable Influences (Air)'
+            },
             'guidance': [
                 'Fire transformation energy present',
                 'Water emotional flow detected'
@@ -44,7 +57,7 @@ class TestSemanticAdapter(unittest.TestCase):
             Card('Three of Swords', 'minor', 'S', '3', 'Sorrow')
         ]
 
-        adapter = SemanticAdapter(config['layout'], cards, config['semantics'])
+        adapter = SemanticAdapter(config['layout'], cards, config['semantics'], config['semantic_groups'])
 
         # Test semantic legend rendering
         legend = adapter.render_semantic_legend(include_keywords=False)
@@ -161,7 +174,7 @@ class TestSpreadLoaderEnhancements(unittest.TestCase):
         temp_path = Path.cwd() / 'test_integration_spread.json'
 
         try:
-            with open(temp_path, 'w') as f:
+            with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(test_spread, f)
 
             # Test loading with SpreadLoader

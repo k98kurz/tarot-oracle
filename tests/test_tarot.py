@@ -74,7 +74,7 @@ class TestTarot(unittest.TestCase):
 
         try:
             # Create the test deck file
-            with open(deck_file, 'w') as f:
+            with open(deck_file, 'w', encoding='utf-8') as f:
                 json.dump(test_deck, f)
 
             # Test that the deck loader can find it

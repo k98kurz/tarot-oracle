@@ -5,37 +5,37 @@
 Combines traditional tarot with LLM interpretation via Gemini, OpenRouter, or Ollama.
 Supports custom invocations, spreads, session saving, and both CLI and programmatic interfaces."""
 
-import json
-import sys
-import os
 from argparse import ArgumentParser
-from typing import Any, cast
-import requests
 from datetime import datetime
-import re
 from pathlib import Path
+from sys import stderr
+from typing import Any, cast
 
+from tarot_oracle.config import config
+from tarot_oracle.loaders import InvocationLoader
 from tarot_oracle.tarot import (
-    TarotDivination,
-    SpreadRenderer,
-    SPREADS,
-    resolve_spread,
     Card,
     MAJOR_ARCANA,
     MINOR_ARCANA,
-    SEMANTICS
+    SEMANTICS,
+    SPREADS,
+    SpreadRenderer,
+    TarotDivination,
+    resolve_spread,
 )
 
-# Import configuration
-from tarot_oracle.config import config
-from tarot_oracle.loaders import InvocationLoader
-# Custom exceptions removed - using standard TypeError and ValueError instead
-
-# Import Gemini SDK when available
 try:
     from google import genai
 except ImportError:
     genai = None
+
+import json
+import os
+import re
+import requests
+import sys
+
+# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 class InvocationManager:
@@ -50,14 +50,8 @@ class InvocationManager:
 
     @staticmethod
     def get_hermes_thoth_prometheus_invocation() -> str:
-        """Returns the default Hermes-Thoth and Prometheus dual invocation.
-        
-        This invocation combines the wisdom of Hermes-Thoth (guide of souls
-        and keeper of sacred knowledge) with the foresight of Prometheus
-        (bringer of fire and divine insight).
-        
-        Returns:
-            The complete invocation text for ceremonial reading openings.
+        """Returns the default Hermes-Thoth and Prometheus dual invocation
+            combining wisdom and foresight for ceremonial readings.
         """
         return """By the wisdom of Hermes-Thoth, guide of souls and keeper of sacred knowledge,
 and by the foresight of Prometheus, bringer of fire and divine insight,
