@@ -2,3 +2,9 @@
 *venv*
 **/__pycache__
 test_env*
+# ignore intermediate agentic AI files
+.ralph/
+.research/
+ralph.lock.json
+*.md
+!readme.md
