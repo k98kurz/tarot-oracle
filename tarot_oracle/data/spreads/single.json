@@ -1,0 +1,6 @@
+{
+  "name": "single",
+  "description": "Single card contemplation",
+  "layout": [[1]],
+  "semantics": [["Contemplation on Question/Potential Answer/Guidance"]]
+}

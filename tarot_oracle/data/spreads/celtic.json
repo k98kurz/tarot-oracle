@@ -1,0 +1,16 @@
+{
+  "name": "celtic",
+  "description": "Celtic Cross 10-card spread",
+  "layout": [
+    [0, 5, 0, 0, 7],
+    [4, 1, 6, 0, 8],
+    [0, 2, 0, 0, 9],
+    [0, 3, 0, 0, 10]
+  ],
+  "semantics": [
+    ["", "Goal/Potential/Best Outcome", "", "", "Previous Experiences/Attitudes"],
+    ["Recent Past", "Present/Theme/Querent's Role", "Near Future", "", "External Influences (Environment/Social)"],
+    ["", "Primary Obstable/Challenge", "", "", "Hopes/Fears"],
+    ["", "Pyschic/Subconscious Foundations of the Issue", "", "", "Probable/Natural Outcome"]
+  ]
+}

@@ -1,49 +1,9 @@
-"""Centralized configuration management for Tarot Oracle.
-
-This module provides comprehensive configuration management with support for
-environment variables, configuration files, and runtime updates. It manages
-all aspects of the tarot oracle system including AI providers,
-file paths, and user preferences.
-
-The configuration system follows this precedence order:
-1. Default values (hardcoded)
-2. Configuration file (~/.tarot-oracle/config.json)
-3. Environment variables
-4. Runtime modifications
-
-Configuration Options:
-    - provider: AI provider to use ('gemini', 'openrouter', 'ollama')
-    - google_ai_api_key: API key for Google Gemini provider
-    - openrouter_api_key: API key for OpenRouter provider  
-    - ollama_host: Host address for Ollama server (default: 'localhost:11434')
-    - autosave_sessions: Whether to automatically save sessions (default: True)
-    - autosave_location: Directory path for session saving (default: '~/oracles')
-    - default_spread: Default spread type for readings (default: 'celtic_cross')
-    - max_file_size: Maximum file size for custom configurations (default: 1MB)
-
-Environment Variables:
-    - ORACLE_PROVIDER: Override AI provider selection
-    - GOOGLE_AI_API_KEY: Google Gemini API key
-    - OPENROUTER_API_KEY: OpenRouter API key
-    - OLLAMA_HOST: Ollama server host address
-    - TAROT_ORACLE_AUTOSAVE: Enable/disable session autosaving ('true'/'false')
-    - TARO_ORACLE_AUTOSAVE_LOCATION: Override session save directory
-
-Example:
-    >>> from tarot_oracle.config import config
-    >>> print(config.provider)  # Get current provider
-    >>> config.set("provider", "openrouter")  # Set new provider
-    >>> config.save()  # Persist changes
-    >>> 
-    >>> # Environment variable usage
-    >>> # In shell: export ORACLE_PROVIDER=openrouter
-    >>> # In Python: config.provider will use environment value
-"""
+from pathlib import Path
+from typing import Any
 
 import json
 import os
-from pathlib import Path
-from typing import Any
+
 # Custom exceptions removed - using standard TypeError and ValueError instead
 
 

@@ -1,30 +1,11 @@
-"""Unified loader system for custom invocations and spreads.
-
-This module provides secure loading of user-defined invocations and spread
-configurations. It implements proper path validation, search order
-prioritization, and security measures to prevent path traversal
-attacks.
-
-Features:
-- Secure file loading with path traversal protection
-- Search order: current directory, then user config directory
-- Support for .txt, .md, and .json file formats
-- Comprehensive error handling and validation
-- Metadata extraction for file listings
-
-Example:
-    >>> inv_loader = InvocationLoader()
-    >>> text = inv_loader.load_invocation("my-custom")
-    >>> spread_loader = SpreadLoader()
-    >>> spread = spread_loader.load_spread("celtic-cross-enhanced")
-"""
-
-import json
-import re
 from pathlib import Path
 from typing import Any
 
 from tarot_oracle.config import config
+
+import json
+import re
+
 # Custom exceptions removed - using standard TypeError and ValueError instead
 
 
@@ -64,15 +45,9 @@ class InvocationLoader:
         2. ./{name}.txt  
         3. ./{name}.md
         4. ~/.tarot-oracle/invocations/{name}
-        5. ~/.tarot-oracle/invocations/{name}.txt
-        6. ~/.tarot-oracle/invocations/{name}.md
-        
-        Args:
-            name: Name of the invocation to load
-            
-        Returns:
-            Full text of the invocation, or None if not found
-        """
+         5. ~/.tarot-oracle/invocations/{name}.txt
+         6. ~/.tarot-oracle/invocations/{name}.md
+         """
         # Sanitize filename to prevent path traversal
         safe_name = re.sub(r'[^a-zA-Z0-9._-]', '', name)
         safe_name = safe_name.lstrip('.-')
@@ -104,10 +79,8 @@ class InvocationLoader:
         return None
 
     def list_invocations(self) -> list[dict[str, str]]:
-        """Scan ~/.tarot-oracle/invocations/ and return invocation metadata.
-        
-        Returns:
-            List of dictionaries containing invocation metadata (filename, preview)
+        """Scan ~/.tarot-oracle/invocations/ and return invocation metadata
+            containing filename and preview.
         """
         if not config.invocations_dir.exists() or not config.invocations_dir.is_dir():
             return []
@@ -190,17 +163,8 @@ class SpreadLoader:
     """
 
     def load_spread(self, name: str) -> dict[str, Any] | None:
-        """Load spread configuration by name using search order with security validation.
-        
-        Search order:
-        1. ./{name}.json
-        2. ~/.tarot-oracle/spreads/{name}.json
-        
-        Args:
-            name: Name of the spread to load
-            
-        Returns:
-            Spread configuration dictionary, or None if not found
+        """Load spread configuration by name using search order with security
+            validation from current directory and ~/.tarot-oracle/spreads/.
         """
         # Sanitize filename to prevent path traversal
         safe_name = re.sub(r'[^a-zA-Z0-9._-]', '', name)
@@ -230,17 +194,8 @@ class SpreadLoader:
         return None
 
     def _validate_spread_config(self, config: dict[str, Any], path: str) -> dict[str, Any]:
-        """Validate spread configuration structure and content.
-        
-        Args:
-            config: Loaded configuration dictionary
-            path: File path for error reporting
-            
-        Returns:
-            Validated configuration dictionary
-            
-        Raises:
-            ValueError: If configuration is invalid
+        """Validate spread configuration structure and content, returning validated
+            config or raising ValueError if invalid.
         """
         # Validate required fields
         if 'name' not in config:
@@ -318,14 +273,8 @@ class SpreadLoader:
         return config
 
     def _validate_variable_placeholders_matrix(self, semantics: list[list[str|None]], path: str) -> None:
-        """Validate variable placeholder syntax in semantics matrix.
-        
-        Args:
-            semantics: Matrix of semantic strings to validate
-            path: File path for error reporting
-            
-        Raises:
-            ValueError: If invalid variable placeholders are found
+        """Validate variable placeholder syntax in semantics matrix, raising
+            ValueError if invalid variables are found.
         """
         # Valid variable patterns
         valid_variables = {
@@ -347,14 +296,8 @@ class SpreadLoader:
                             )
 
     def _validate_variable_placeholders(self, semantics: list[dict], path: str) -> None:
-        """Validate variable placeholder syntax in semantics.
-        
-        Args:
-            semantics: List of semantic entries to validate
-            path: File path for error reporting
-            
-        Raises:
-            ValueError: If invalid variable placeholders are found
+        """Validate variable placeholder syntax in semantics, raising ValueError
+            if invalid variables are found.
         """
         # Valid variable patterns
         valid_variables = {
@@ -404,18 +347,8 @@ class SpreadLoader:
         return spreads
 
     def save_spread(self, name: str, spread_config: dict[str, Any]) -> str:
-        """Save a spread configuration to the spreads directory.
-        
-        Args:
-            name: Name of the spread (without .json extension)
-            spread_config: Spread configuration dictionary
-            
-        Returns:
-            Path to the saved file
-            
-        Raises:
-            ValueError: If configuration is invalid
-            OSError: If file cannot be written
+        """Save a spread configuration to the spreads directory, returning file
+            path or raising ValueError/OSError if invalid or unwritable.
         """
         # Validate the configuration first
         validated_config = self._validate_spread_config(spread_config, "new spread")

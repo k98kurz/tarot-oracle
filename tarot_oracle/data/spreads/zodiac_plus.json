@@ -1,0 +1,54 @@
+{
+  "name": "zodiac+",
+  "description": "13 card Zodiac spread: 1 for each astrological house + central theme",
+  "layout": [
+    [0, 0,  0,  10, 0,  0,  0],
+    [0, 0,  11, 0,  9,  0,  0],
+    [0, 12, 0,  0,  0,  8,  0],
+    [1, 0,  0,  13,  0,  0,  7],
+    [0, 2,  0,  0,  0,  6,  0],
+    [0, 0,  3,  0,  5,  0,  0],
+    [0, 0,  0,  4,  0,  0,  0]
+  ],
+  "semantic_groups": {
+    "ari": "Aries: Mars (Planet), Fire (Element), New Beginnings/Initiation/Self-expression/Method of Action",
+    "tau": "Taurus: Venus (Planet), Earth (Element), Material Concerns/Required Resources/Seeds to Sow for Outcome",
+    "gem": "Gemini: Mercury (Planet), Air (Element), Querent's Thoughts/Communications/Method for Communication or Collaboration",
+    "can": "Cancer: Moon (Planet), Water (Element), Emotional Security Foundation/Situational Mood/Method to Gain Emotional Ease",
+    "leo": "Leo: Sun (Planet), Fire (Element), Personality/Creative Expression/Public Image/Method to Build Confidence",
+    "vir": "Virgo: Mercury (Planet), Earth (Element), Systems for Productivity/Healthy Habits/Advice to Find Practical Solutions",
+    "lib": "Libra: Venus (Planet), Air (Element), Committed Partnerships/Personal Balance/Advice to Solve Conflicts",
+    "sco": "Scorpio: Pluto (Planet), Water (Element), Personal Power/Sexuality/Long-term Investments and Wealth",
+    "sag": "Sagittarius: Jupiter (Planet), Fire (Element), Adventure/Travel/Personal Growth/Study and Teaching",
+    "cap": "Capricorn: Saturn (Planet), Earth (Element), Ambition/Discipline/Career Success/Professional Focus",
+    "aqu": "Aquarius: Uranus (Planet), Air (Element), Originality/Creativity/Ability to Innovate/Community Affiliation",
+    "pis": "Pisces: Neptune (Planet), Water (Element), Dreams/Fantasies/Spiritual Wisdom/Transitions/What to Release",
+    "cen": "Center: Overarching theme or energy that ties together the other cards/additional insight or guidance"
+  },
+  "semantics": [
+    [0,    0,    0,    "${cap}", 0,  0,  0],
+    [0,    0,    "${aqu}", 0,  "${sag}",  0,  0],
+    [0,    "${pis}", 0,    0,  0,  "${sco}",  0],
+    ["${ari}", 0,  0,  "${cen}",  0,  0,  "${lib}"],
+    [0,    "${tau}",  0,  0,  0,  "${vir}",  0],
+    [0,    0,   "${gem}", 0,  "${leo}",  0,  0],
+    [0,    0,    0,    "${can}",  0,  0,  0]
+  ],
+  "guidance": [
+    "Mars as Planetary Ruler represents aspects of courage and competitive spirit",
+    "Venus as Planetary Ruler represents aspects of beauty and pleasure",
+    "Mercury as Planetary Ruler represents aspects of inquisitiveness and communicativeness",
+    "The Moon as Planetary Ruler represents aspects of flowing feelings",
+    "The Sun as Planetary Ruler represents aspects of boldness and ego-driven tendencies",
+    "Pluto as Planetary Ruler represents aspects of intensity and powerfulness",
+    "Jupiter as Planetary Ruler represents aspects of joviality and larger-than-life stature",
+    "Saturn as Planetary Ruler represents aspects of seriousness and hard-working demeanor",
+    "Uranus as Planetary Ruler represents aspects of rebelliousness and uniqueness",
+    "Neptune as Planetary Ruler represents aspects of imaginativeness and dreaminess",
+    "Earth Element represents grounding in physical reality",
+    "Air Element represents animating spirit that gets things moving",
+    "Water Element represents flowing feelings",
+    "Fire Element represents change, especially from action",
+    "Reversals do not mean inversion but instead require orthogonal analysis -- different, but not opposite"
+  ]
+}

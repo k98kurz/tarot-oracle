@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-import sys
 from argparse import ArgumentParser, Namespace
+
+import sys
 
 
 
@@ -30,16 +31,8 @@ class RomanConverter:
 
     @classmethod
     def convert(cls, number: int) -> str:
-        """Convert a positive integer to its Roman numeral representation.
-
-        Args:
-            number: Positive integer between 1 and 3999 inclusive
-
-        Returns:
-            Roman numeral string
-
-        Raises:
-            ValueError: If number is outside valid range
+        """Convert positive integer to Roman numeral, raising ValueError
+            if outside valid range (1-3999).
         """
         if not cls._is_valid_number(number):
             raise ValueError(f"Number must be between {cls.MIN_VALUE} and {cls.MAX_VALUE}")
