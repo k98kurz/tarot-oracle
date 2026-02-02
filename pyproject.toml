@@ -43,3 +43,8 @@ gemini = [
 [project.scripts]
 tarot = "tarot_oracle.tarot:main"
 oracle = "tarot_oracle.oracle:main"
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "tarot_oracle/data/**/*.json"
+]
