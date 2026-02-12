@@ -48,13 +48,13 @@ Install with `pip install tarot-oracle`. The project provides both CLI tools and
 
 ```bash
 # Generate a Celtic Cross reading
-tarot-oracle reading "What guidance do you seek?" --spread celtic-cross
+tarot "What guidance do you seek?" --spread celtic-cross
 
 # Use a specific deck
-tarot-oracle reading "Question about career" --deck rider-waite
+tarot "Question about career" --deck rider-waite
 
 # Get AI interpretation
-tarot-oracle reading "Life path question" --provider gemini --interpret
+oracle "Life path question" --provider gemini --interpret
 ```
 
 ### Python API
