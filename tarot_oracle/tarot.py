@@ -9,9 +9,9 @@ from sys import argv, stdin
 from time import time
 from typing import Any, NoReturn, cast
 
-from tarot_oracle.config import config
-from tarot_oracle.data_loader import BundledDataLoader
-from tarot_oracle.loaders import SpreadLoader
+from .config import config
+from .data_loader import BundledDataLoader
+from .loaders import SpreadLoader
 
 import ast
 import json
@@ -177,7 +177,7 @@ class DeckLoader:
         safe_filename = safe_filename.lstrip('.-')
         if not safe_filename:
             return None
-            
+
         search_paths = [
             Path.cwd() / safe_filename,
             Path.cwd() / f"{safe_filename}.json",
@@ -189,7 +189,7 @@ class DeckLoader:
             if path.exists() and path.is_file():
                 resolved = path.resolve()
                 # Ensure path is within expected directories
-                if (resolved.is_relative_to(Path.cwd()) or 
+                if (resolved.is_relative_to(Path.cwd()) or
                     resolved.is_relative_to(config.home_dir)):
                     return str(resolved)
         return None
@@ -232,11 +232,11 @@ class DeckLoader:
         # Find all .json files in the decks directory
         for json_file in decks_dir.glob("*.json"):
             try:
-                config = DeckLoader.load_deck_config(str(json_file))
+                deck_config = DeckLoader.load_deck_config(str(json_file))
                 decks.append({
                     "filename": json_file.name,
-                    "name": config.get("name", "Unnamed Deck"),
-                    "description": config.get("description", "No description available")
+                    "name": deck_config.get("name", "Unnamed Deck"),
+                    "description": deck_config.get("description", "No description available")
                 })
             except Exception:
                 # Skip invalid deck files
@@ -253,7 +253,7 @@ class DeckLoader:
         deck_path = self.resolve_deck_path(deck_name)
         if deck_path is None:
             raise ValueError(f"Deck '{deck_name}' not found in search paths")
-        
+
         return Deck(deck_path)
 
 
@@ -328,12 +328,12 @@ class Deck:
 
     def _load_custom_deck(self, deck_path: str) -> list[Card]:
         """Load deck from JSON configuration file."""
-        config = DeckLoader.load_deck_config(deck_path)
+        deck_config = DeckLoader.load_deck_config(deck_path)
         cards = []
 
         # Load Major Arcana
-        if 'major_arcana' in config:
-            for card_data in config['major_arcana']:
+        if 'major_arcana' in deck_config:
+            for card_data in deck_config['major_arcana']:
                 name = card_data.get('name', 'Unknown')
                 value = card_data.get('value', '0')
                 keywords = card_data.get('keywords', '')
@@ -350,8 +350,8 @@ class Deck:
                 cards.append(card)
 
         # Load Minor Arcana
-        if 'minor_arcana' in config:
-            for card_data in config['minor_arcana']:
+        if 'minor_arcana' in deck_config:
+            for card_data in deck_config['minor_arcana']:
                 suit = card_data.get('suit')
                 suit_name = card_data.get('suit_name', 'Unknown')
                 value = card_data.get('value', '0')
@@ -378,12 +378,12 @@ class Deck:
         return cards
 
     @staticmethod
-    def _load_custom_deck_from_config(config: dict[str, Any]) -> list[Card]:
+    def _load_custom_deck_from_config(deck_config: dict[str, Any]) -> list[Card]:
         """Load deck from configuration dictionary (used for bundled decks)."""
         cards = []
 
-        if 'major_arcana' in config:
-            for card_data in config['major_arcana']:
+        if 'major_arcana' in deck_config:
+            for card_data in deck_config['major_arcana']:
                 name = card_data.get('name', 'Unknown')
                 value = card_data.get('value', '0')
                 keywords = card_data.get('keywords', '')
@@ -399,8 +399,8 @@ class Deck:
                 )
                 cards.append(card)
 
-        if 'minor_arcana' in config:
-            for suit_name, suit_cards in config['minor_arcana'].items():
+        if 'minor_arcana' in deck_config:
+            for suit_name, suit_cards in deck_config['minor_arcana'].items():
                 suit_letter = {'wands': 'W', 'cups': 'C', 'swords': 'S', 'pentacles': 'P'}.get(suit_name.lower())
                 if not suit_letter:
                     continue
@@ -502,7 +502,7 @@ class SpreadRenderer:
         """Render the complete spread with simple notation."""
         # Check if this is a matrix layout (more than one row)
         is_matrix = len(spread_layout) > 1
-        
+
         if is_matrix:
             # Handle as matrix
             flat_positions = []
@@ -846,7 +846,7 @@ class TarotDivination:
             # Already in matrix format
             # Type assertion: we know this is list[list[int]] due to isinstance check
             normalized_layout = cast(list[list[int]], spread_layout)
-        
+
         needed_cards = len([pos for row in normalized_layout for pos in row if pos > 0])
         return normalized_layout, needed_cards
 

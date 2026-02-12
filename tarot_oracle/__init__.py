@@ -14,20 +14,6 @@ from .tarot import (
 )
 from .oracle import Oracle
 from .config import Config
+from .version import version
 # Custom exceptions removed - using standard TypeError and ValueError instead
 
-__version__ = "0.1.0"
-__all__ = [
-    "TarotDivination",
-    "SpreadRenderer", 
-    "SPREADS",
-    "resolve_spread",
-    "Card",
-    "MAJOR_ARCANA",
-    "MINOR_ARCANA",
-    "SEMANTICS",
-    "DeckLoader",
-    "SemanticAdapter",
-    "Oracle",
-    "Config",
-]

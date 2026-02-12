@@ -24,7 +24,6 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Games/Entertainment",
   "Topic :: Religion",
-  "Topic :: Software Development :: Libraries :: Python",
 ]
 dependencies = [
   "requests >= 2.25.0",
@@ -44,7 +43,3 @@ gemini = [
 tarot = "tarot_oracle.tarot:main"
 oracle = "tarot_oracle.oracle:main"
 
-[tool.hatch.build.targets.wheel]
-include = [
-    "tarot_oracle/data/**/*.json"
-]
