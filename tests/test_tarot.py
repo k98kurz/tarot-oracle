@@ -67,7 +67,29 @@ class TestTarot(unittest.TestCase):
         test_deck = {
             "name": "Unit Test Deck",
             "description": "Temporary deck for testing",
-            "cards": ["W_A", "W_2", "W_3"]
+            "cards": [
+                {
+                    "name": "Ace of Wands",
+                    "card_type": "minor",
+                    "suit": "W",
+                    "value": "A",
+                    "keywords": "Fire energy, new beginnings, creative spark, inspiration"
+                },
+                {
+                    "name": "Two of Wands",
+                    "card_type": "minor",
+                    "suit": "W",
+                    "value": "2",
+                    "keywords": "Fire energy, planning, future vision, making decisions"
+                },
+                {
+                    "name": "Three of Wands",
+                    "card_type": "minor",
+                    "suit": "W",
+                    "value": "3",
+                    "keywords": "Fire energy, expansion, growth, celebration"
+                }
+            ]
         }
 
         deck_file = config.decks_dir / "unit_test_deck.json"
@@ -87,7 +109,10 @@ class TestTarot(unittest.TestCase):
             # Test that the deck can be loaded
             deck_config = DeckLoader.load_deck_config(resolved)
             assert deck_config["name"] == "Unit Test Deck", f"Expected 'Unit Test Deck', got {deck_config['name']}"
-            assert deck_config["cards"] == ["W_A", "W_2", "W_3"], f"Expected ['W_A', 'W_2', 'W_3'], got {deck_config['cards']}"
+            assert len(deck_config["cards"]) == 3, f"Expected 3 cards, got {len(deck_config['cards'])}"
+            assert deck_config["cards"][0]["name"] == "Ace of Wands"
+            assert deck_config["cards"][0]["card_type"] == "minor"
+            assert deck_config["cards"][0]["suit"] == "W"
 
         finally:
             # Clean up the test file

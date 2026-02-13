@@ -43,3 +43,12 @@ gemini = [
 tarot = "tarot_oracle.tarot:main"
 oracle = "tarot_oracle.oracle:main"
 
+[tool.hatch.build.targets.wheel]
+exclude = [
+  "/tests",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/tests",
+]

@@ -132,17 +132,15 @@ class TestTarotCLI(unittest.TestCase):
 
     def test_tarot_invalid_deck(self):
         """Test returns 1 and prints error for invalid deck."""
-        with patch('tarot_oracle.tarot.DeckLoader') as mock_loader_class:
-            mock_loader = MagicMock()
-            mock_loader.resolve_deck_path.return_value = None
-            mock_loader_class.return_value = mock_loader
+        with patch('tarot_oracle.tarot.Deck.load_deck_by_name') as mock_load:
+            mock_load.side_effect = ValueError(f"Deck 'nonexistent' not found.")
 
             with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
                 result = tarot.main(['--deck', 'nonexistent', 'test question'])
                 output = mock_stdout.getvalue()
 
                 assert result == 1
-                assert "Error: Deck file 'nonexistent' not found" in output
+                assert "Error: Deck 'nonexistent' not found" in output
 
     def test_tarot_invalid_spread(self):
         """Test returns 1 and prints error for invalid spread."""

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from secrets import token_bytes
-from sys import argv, stdin
+from sys import argv, stdin, stderr
 from time import time
 from typing import Any, NoReturn, cast
 
@@ -313,112 +313,115 @@ class Deck:
     Creates standard 78-card deck or loads custom JSON configurations.
     Provides deterministic shuffling with optional reversed card assignment."""
 
-    def __init__(self, deck_path: str | None = None) -> None:
+    @staticmethod
+    def load_deck_by_name(deck_name: str) -> dict[str, Any]:
+        """Load deck configuration by name from bundled data or user files.
+
+        Searches bundled decks first, then user config directory.
+        Returns deck config dict or raises ValueError if not found.
+        """
+        safe_name = re.sub(r'[^a-zA-Z0-9._-]', '', deck_name)
+        safe_name = safe_name.lstrip('.-')
+        if not safe_name:
+            raise ValueError(f"Invalid deck name: '{deck_name}'")
+
+        bundled_deck = BundledDataLoader.load_deck(safe_name)
+        if bundled_deck:
+            return bundled_deck
+
+        deck_loader = DeckLoader()
+        deck_path = deck_loader.resolve_deck_path(safe_name)
+        if deck_path:
+            return DeckLoader.load_deck_config(deck_path)
+
+        bundled_decks = BundledDataLoader.list_decks()
+        error_msg = f"Deck '{deck_name}' not found.\n\n"
+        error_msg += f"Available bundled decks: {', '.join(bundled_decks)}\n\n"
+        error_msg += f"Searched paths:\n"
+        error_msg += f"  Bundled decks: {safe_name}\n"
+        error_msg += f"  ./{safe_name}\n"
+        error_msg += f"  ./{safe_name}.json\n"
+        error_msg += f"  {config.decks_dir}/{safe_name}\n"
+        error_msg += f"  {config.decks_dir}/{safe_name}.json"
+        raise ValueError(error_msg)
+
+    def __init__(self, deck_path: str | None = None, deck_config: dict[str, Any] | None = None) -> None:
         self.cards = []
         self.shuffled = []
 
-        if deck_path:
-            self.cards = self._load_custom_deck(deck_path)
+        if deck_config:
+            self.cards = self._load_deck_from_config(deck_config)
+        elif deck_path:
+            deck_config = DeckLoader.load_deck_config(deck_path)
+            self.cards = self._load_deck_from_config(deck_config)
         else:
             bundled_deck = BundledDataLoader.load_deck("rider-waite")
             if bundled_deck:
-                self.cards = self._load_custom_deck_from_config(bundled_deck)
+                self.cards = self._load_deck_from_config(bundled_deck)
             else:
                 self.cards = self._create_deck()
 
-    def _load_custom_deck(self, deck_path: str) -> list[Card]:
-        """Load deck from JSON configuration file."""
-        deck_config = DeckLoader.load_deck_config(deck_path)
-        cards = []
-
-        # Load Major Arcana
-        if 'major_arcana' in deck_config:
-            for card_data in deck_config['major_arcana']:
-                name = card_data.get('name', 'Unknown')
-                value = card_data.get('value', '0')
-                keywords = card_data.get('keywords', '')
-                reversed_keywords = card_data.get('reversed')
-
-                card = Card(
-                    name=name,
-                    card_type='major',
-                    suit=None,
-                    value=value,
-                    keywords=keywords,
-                    reversed_keywords=reversed_keywords
-                )
-                cards.append(card)
-
-        # Load Minor Arcana
-        if 'minor_arcana' in deck_config:
-            for card_data in deck_config['minor_arcana']:
-                suit = card_data.get('suit')
-                suit_name = card_data.get('suit_name', 'Unknown')
-                value = card_data.get('value', '0')
-                name = card_data.get('name', f"{value} of {suit_name}")
-                keywords = card_data.get('keywords', '')
-                reversed_keywords = card_data.get('reversed')
-
-                if not suit or not value:
-                    continue  # Skip invalid cards
-
-                card = Card(
-                    name=name,
-                    card_type='minor',
-                    suit=suit,
-                    value=value,
-                    keywords=keywords,
-                    reversed_keywords=reversed_keywords
-                )
-                cards.append(card)
-
-        if not cards:
-            raise ValueError("No valid cards found in deck configuration")
-
-        return cards
-
     @staticmethod
-    def _load_custom_deck_from_config(deck_config: dict[str, Any]) -> list[Card]:
-        """Load deck from configuration dictionary (used for bundled decks)."""
+    def _load_deck_from_config(deck_config: dict[str, Any]) -> list[Card]:
+        """Load deck from configuration dictionary.
+
+        Supports 'cards' array format where each card has:
+        - name: Card display name
+        - card_type: 'major' or 'minor'
+        - suit: W, C, S, P or null for major arcana
+        - value: Roman numeral for major, letter/number for minor
+        - keywords: Card interpretation keywords
+        - reversed_keywords: Optional reversed meanings
+
+        Returns list of Card objects or raises ValueError if invalid.
+        """
+        if 'cards' not in deck_config:
+            raise ValueError(f"Deck configuration must include 'cards' field")
+
+        cards_list = deck_config['cards']
+        if not isinstance(cards_list, list):
+            raise ValueError(f"Deck 'cards' must be a list")
+
         cards = []
+        for i, card_data in enumerate(cards_list):
+            if not isinstance(card_data, dict):
+                print(f"Warning: Skipped card at index {i} - expected dict, got {type(card_data).__name__}", file=stderr)
+                continue
 
-        if 'major_arcana' in deck_config:
-            for card_data in deck_config['major_arcana']:
-                name = card_data.get('name', 'Unknown')
-                value = card_data.get('value', '0')
-                keywords = card_data.get('keywords', '')
-                reversed_keywords = card_data.get('reversed_keywords')
+            name = cast(str, card_data.get('name'))
+            card_type = cast(str, card_data.get('card_type'))
+            suit = card_data.get('suit')
+            value = cast(str, card_data.get('value'))
+            keywords = cast(str, card_data.get('keywords'))
+            reversed_keywords = card_data.get('reversed_keywords')
 
-                card = Card(
-                    name=name,
-                    card_type='major',
-                    suit=None,
-                    value=value,
-                    keywords=keywords,
-                    reversed_keywords=reversed_keywords
-                )
-                cards.append(card)
+            if not all([name, card_type, value, keywords]):
+                missing = []
+                if not name:
+                    missing.append("'name'")
+                if not card_type:
+                    missing.append("'card_type'")
+                if not value:
+                    missing.append("'value'")
+                if not keywords:
+                    missing.append("'keywords'")
+                card_label = name if name else f"index {i}"
+                print(f"Warning: Skipped card '{card_label}' - missing required fields: {', '.join(missing)}", file=stderr)
+                continue
 
-        if 'minor_arcana' in deck_config:
-            for suit_name, suit_cards in deck_config['minor_arcana'].items():
-                suit_letter = {'wands': 'W', 'cups': 'C', 'swords': 'S', 'pentacles': 'P'}.get(suit_name.lower())
-                if not suit_letter:
-                    continue
-                for card_data in suit_cards:
-                    value = card_data.get('value', '0')
-                    name = card_data.get('name', f"{value} of {suit_name}")
-                    keywords = card_data.get('keywords', '')
-                    reversed_keywords = card_data.get('reversed_keywords')
+            if card_type not in ('major', 'minor'):
+                print(f"Warning: Skipped card '{name}' (index {i}) - invalid card_type '{card_type}', must be 'major' or 'minor'", file=stderr)
+                continue
 
-                    card = Card(
-                        name=name,
-                        card_type='minor',
-                        suit=suit_letter,
-                        value=value,
-                        keywords=keywords,
-                        reversed_keywords=reversed_keywords
-                    )
-                    cards.append(card)
+            card = Card(
+                name=name,
+                card_type=card_type,
+                suit=suit,
+                value=value,
+                keywords=keywords,
+                reversed_keywords=reversed_keywords
+            )
+            cards.append(card)
 
         if not cards:
             raise ValueError("No valid cards found in deck configuration")
@@ -818,8 +821,8 @@ class TarotDivination:
     Handles deck management, card drawing with cryptographic seeds, and spread processing.
     Returns structured output for ASCII display or JSON export with semantic groupings."""
 
-    def __init__(self, deck_path: str | None = None) -> None:
-        self.deck = Deck(deck_path)
+    def __init__(self, deck_path: str | None = None, deck_config: dict[str, Any] | None = None) -> None:
+        self.deck = Deck(deck_path=deck_path, deck_config=deck_config)
 
     def create_seed(self, timestamp: str, question: str, invocation: str|None = None, random_bytes: int = 0) -> int:
         """Create seed from timestamp, question, optional invocation, and random bytes."""
@@ -1132,15 +1135,13 @@ def main(args=None) -> int:
 
     # Resolve deck path if specified
     deck_path = None
+    deck_config = None
+
     if args.deck:
-        deck_loader = DeckLoader()
-        deck_path = deck_loader.resolve_deck_path(args.deck)
-        if not deck_path:
-            print(f"Error: Deck file '{args.deck}' not found. Searched:")
-            print(f"  ./{args.deck}")
-            print(f"  ./{args.deck}.json")
-            print(f"  {config.decks_dir}/{args.deck}")
-            print(f"  {config.decks_dir}/{args.deck}.json")
+        try:
+            deck_config = Deck.load_deck_by_name(args.deck)
+        except ValueError as e:
+            print(f"Error: {e}")
             return 1
 
     # Validate that question is provided for reading mode
@@ -1158,7 +1159,7 @@ def main(args=None) -> int:
     invocation = get_invocation_text(args)
 
     try:
-        tarot = TarotDivination(deck_path)
+        tarot = TarotDivination(deck_path=deck_path, deck_config=deck_config)
     except ValueError as e:
         print(f"Error loading deck: {e}")
         return 1
