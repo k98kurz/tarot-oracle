@@ -50,15 +50,19 @@ class BundledDataLoader:
     @staticmethod
     def export_deck(name: str) -> str | None:
         """Export bundled deck as JSON string. Returns None if deck not found."""
-        deck = BundledDataLoader.load_deck(name)
-        if deck:
-            return json.dumps(deck, indent=2)
-        return None
+        resource_path = f"data/decks/{name}.json"
+        try:
+            with resources.files("tarot_oracle").joinpath(resource_path).open("r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
 
     @staticmethod
     def export_spread(name: str) -> str | None:
         """Export bundled spread as JSON string. Returns None if spread not found."""
-        spread = BundledDataLoader.load_spread(name)
-        if spread:
-            return json.dumps(spread, indent=2)
-        return None
+        resource_path = f"data/spreads/{name}.json"
+        try:
+            with resources.files("tarot_oracle").joinpath(resource_path).open("r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
