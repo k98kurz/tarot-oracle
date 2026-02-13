@@ -6,17 +6,17 @@ A comprehensive tarot divination system with AI-powered interpretation and seman
 
 This is currently a work-in-progress. Remaining work before the v0.1.0 release:
 
-- [ ] Package structure & entry points (pyproject.toml, __init__.py)
-- [ ] Import error resolution (fix numinous.tarot imports)
-- [ ] Security hardening (path traversal fixes, input validation)
-- [ ] Type system modernization (Python 3.10+ built-in types)
-- [ ] Centralized configuration system (~/.tarot-oracle/ directory with config.json)
-- [ ] Custom feature loaders (plain text invocations, semantic spreads, decks)
-- [ ] Enhanced semantic system with guidance rules and variable placeholder syntax
-- [ ] OpenRouter integration for additional AI providers
-- [ ] CLI unification with subcommands
-- [ ] Comprehensive error handling with custom exceptions
-- [ ] Testing infrastructure and documentation
+- [x] Package structure & entry points (pyproject.toml, __init__.py)
+- [x] Import error resolution (fix numinous.tarot imports)
+- [x] Security hardening (path traversal fixes, input validation)
+- [x] Type system modernization (Python 3.10+ built-in types)
+- [x] Centralized configuration system (~/.tarot-oracle/ directory with config.json)
+- [x] Custom feature loaders (plain text invocations, semantic spreads, decks)
+- [x] Enhanced semantic system with guidance rules and variable placeholder syntax
+- [x] OpenRouter integration for additional AI providers
+- [x] CLI tools: `tarot` and `oracle`
+- [x] Comprehensive error handling (using standard exceptions)
+- [x] Testing infrastructure and documentation
 
 Issues are tracked in the project repository. Historical changes can be found in the changelog.
 
@@ -24,14 +24,14 @@ Issues are tracked in the project repository. Historical changes can be found in
 
 ### Core Functionality
 - Custom tarot deck creation and loading
-- Multiple spread configurations (Celtic Cross, Three Card, etc.)
-- Semantic analysis with position-based interpretations
+- Multiple built-in spread configurations (Celtic Cross, Three Card, etc.)
+- Semantic analysis with position-based interpretation guidance
 - AI-powered reading interpretations
 
 ### AI Provider Integration
-- Google Gemini (currently implemented)
+- Google Gemini
 - Ollama (local models)
-- OpenRouter (planned) - Access to Claude, GPT-4, and other models
+- OpenRouter (wide variety of models)
 - Custom model configuration and fallback logic
 
 ### Custom Content System
@@ -48,7 +48,7 @@ Install with `pip install tarot-oracle`. The project provides both CLI tools and
 
 ```bash
 # Generate a Celtic Cross reading
-tarot "What guidance do you seek?" --spread celtic-cross
+tarot "What guidance do you seek?" --spread celtic
 
 # Use a specific deck
 tarot "Question about career" --deck rider-waite
@@ -61,40 +61,59 @@ oracle "Life path question" --provider gemini --interpret
 
 ```python
 from tarot_oracle import TarotDivination, SpreadRenderer
-from tarot_oracle.tarot import SPREADS, Card
+from tarot_oracle.data_loader import BundledDataLoader
+from time import time
 
 # Create a reading
 divination = TarotDivination()
-cards = divination.draw_cards("celtic-cross")
+question = "What guidance do you seek?"
+timestamp = str(int(time()))
+spread_config = BundledDataLoader.load_spread("celtic")
+layout = spread_config['layout']
+
+# Draw cards
+seed = divination.create_seed(timestamp, question)
+drawn_cards = divination.draw_cards_for_reading(seed, layout)
 
 # Render the spread
-renderer = SpreadRenderer()
-output = renderer.render_spread(cards, "celtic-cross")
+output = SpreadRenderer.render_spread(drawn_cards, layout)
 print(output)
 ```
 
 ### Custom Decks
 
 ```python
-from tarot_oracle.tarot import DeckLoader
+from tarot_oracle.tarot import DeckLoader, TarotDivination
 
-# Load a custom deck
+# Load a custom deck by name (searches local and config directories)
 loader = DeckLoader()
-custom_deck = loader.load_deck("my-custom-deck")
+deck = loader.load_deck("my-custom-deck")
+
+# Or load by file path
+from tarot_oracle.tarot import Deck
+deck = Deck(deck_path="my-custom-deck.json")
 
 # Use in reading
-divination = TarotDivination(deck=custom_deck)
+divination = TarotDivination(deck_config=None)
 ```
 
 ### AI Integration
 
 ```python
-from tarot_oracle.oracle import OracleClient
+from tarot_oracle.oracle import Oracle
 
 # Use Gemini for interpretation
-client = OracleClient(provider="gemini", api_key="your-api-key")
-interpretation = client.interpret_reading(cards, question="Your question")
-print(interpretation)
+oracle = Oracle(provider="gemini", api_key="your-api-key")
+result = oracle.perform_divinatory_reading(
+    question="Your question",
+    spread_type="3-card",
+    interpret=True
+)
+
+print(result["spread_display"])
+print(result["legend_display"])
+if "interpretation" in result:
+    print(result["interpretation"])
 ```
 
 ## Configuration
@@ -123,13 +142,13 @@ The system uses a centralized configuration in `~/.tarot-oracle/`:
 The system includes comprehensive semantic analysis for each card position:
 
 ### Built-in Spreads
-- **Single Card** - The simplest possible spread, good for quick/simple readings
-- **Three Card** - Past, Present, Future
-- **Five Card Cross** - Extended situation analysis
-- **Celtic Cross** - 10 cards for comprehensive life readings
-- **Crowley/Golden Dawn Spread** - An extensive, 15-card, general purpose spread
-- **Zodiac Spread** - A 12-card spread with one for each astrological house
-- **Zodiac Plus Spread** - Same as the Zodiac spread with one additional central card
+- **single** - Single Card: The simplest possible spread, good for quick/simple readings
+- **3-card** - Three Card: Past, Present, Future
+- **cross** - Five Card Cross: Extended situation analysis
+- **celtic** - Celtic Cross: 10 cards for comprehensive life readings
+- **crowley** - Golden Dawn Spread: An extensive, 15-card, general purpose spread
+- **zodiac** - Zodiac Spread: A 12-card spread with one for each astrological house
+- **zodiac_plus** - Zodiac Plus Spread: Same as the Zodiac spread with one additional central card
 
 ### Semantic Features
 - Position-based card meanings
@@ -141,7 +160,7 @@ The system includes comprehensive semantic analysis for each card position:
 ### Custom Spread Syntax
 
 Custom spreads can be defined with json files specifying the name, description,
-and positions matrix, and optionally semantic groupings, per-card semantics, and
+and layout matrix, and optionally semantic groupings, per-card semantics, and
 interpretation guidance principles.
 
 This is the structure of the "crowley" spread bundled with the library:
@@ -150,11 +169,11 @@ This is the structure of the "crowley" spread bundled with the library:
 {
   "name": "Golden Dawn",
   "description": "15-card Golden Dawn spread",
-  "positions": [
+  "layout": [
      [13,  9,  5,  0,  4,  8, 12],
      [ 0,  0,  2,  1,  3,  0,  0],
      [14, 10,  6,  0,  7, 11, 15]
-  ],
+   ],
   "semantic_groups": {
     "earth" : "Potential Future/Natural Path (Earth)",
     "water" : "Far/Alternate Future Path (Water)",
@@ -190,12 +209,12 @@ below.
 
 To test, clone the repo, install dependencies, and run:
 ```bash
-python -m pytest tests/
+python -m unittest discover -s tests
 ```
 
-Or run individual tests:
+Or use pytest if installed (optional):
 ```bash
-python -m unittest discover -s tests
+python -m pytest tests/
 ```
 
 ### Project Structure
@@ -203,13 +222,25 @@ python -m unittest discover -s tests
 ```
 tarot_oracle/
 ├── __init__.py          # Package initialization
-├── tarot.py            # Core tarot functionality
-├── oracle.py           # AI integration and interpretation
+├── tarot.py            # Core tarot functionality and CLI
+├── oracle.py           # AI integration and CLI
 ├── config.py           # Configuration management
 ├── loaders.py          # Custom content loaders
-├── cli.py              # Unified CLI interface
+├── data_loader.py      # Bundled data loader
+├── version.py         # Version information
 ├── roman_numerals.py   # Utility functions
 └── messages.py         # Message formatting
+data/                   # Bundled resources
+├── decks/            # Built-in deck configurations
+│   └── rider-waite.json
+└── spreads/          # Built-in spread configurations
+    ├── 3-card.json
+    ├── celtic.json
+    ├── cross.json
+    ├── crowley.json
+    ├── single.json
+    ├── zodiac.json
+    └── zodiac_plus.json
 ```
 
 ## ISC License

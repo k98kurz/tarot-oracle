@@ -18,151 +18,6 @@ import json
 import os
 import re
 
-# Custom exceptions removed - using standard TypeError and ValueError instead
-
-
-
-# Comprehensive card keyword dictionaries (synthesized from Rider-Waite, Golden Dawn, Thoth traditions)
-MAJOR_ARCANA = {
-    "Fool": "New beginnings, innocence, spontaneity, trust, faith, leap of faith",
-    "Magician": "Manifestation, skill, willpower, action, creation, resourcefulness, focused intention",
-    "High Priestess": "Intuition, secrets, hidden knowledge, subconscious, mystery, divine feminine",
-    "Empress": "Abundance, fertility, nurturing, nature, creativity, manifestation, earth mother",
-    "Emperor": "Authority, structure, control, father figure, stability, leadership, establishment",
-    "Hierophant": "Tradition, wisdom, institutions, conformity, spiritual guidance, organized belief",
-    "Lovers": "Choice, partnership, harmony, union, alignment, values, soul connection",
-    "Chariot": "Determination, victory, willpower, control, forward movement, self-discipline",
-    "Strength": "Courage, inner strength, compassion, patience, taming wild nature, gentle power",
-    "Hermit": "Introspection, soul searching, solitude, inner guidance, wisdom, spiritual isolation",
-    "Wheel of Fortune": "Cycles, destiny, change, luck, turning points, karma, fate",
-    "Justice": "Balance, fairness, truth, law, cause and effect, accountability, karmic justice",
-    "Hanged Man": "Surrender, pause, new perspectives, sacrifice, letting go, suspension",
-    "Death": "Transformation, endings, change, rebirth, transition, release, new chapter",
-    "Temperance": "Moderation, balance, patience, synthesis, healing, middle path, alchemy",
-    "Devil": "Bondage, materialism, addiction, shadow work, limitation, breaking chains",
-    "Tower": "Upheaval, revelation, sudden change, chaos, awakening, truth revealed",
-    "Star": "Hope, inspiration, guidance, healing, renewal, spiritual connection",
-    "Moon": "Illusion, fear, anxiety, subconscious, intuition, hidden truths, dreams",
-    "Sun": "Joy, success, vitality, clarity, optimism, achievement, enlightenment",
-    "Judgement": "Awakening, rebirth, calling, purpose, forgiveness, new phase",
-    "World": "Completion, integration, accomplishment, fulfillment, wholeness, success"
-}
-
-MINOR_ARCANA = {
-    # Wands (Fire energy)
-    "W_A": "Fire energy, new beginnings, creative spark, inspiration, passion, initiative, opportunity",
-    "W_2": "Fire energy, planning, future vision, making decisions, progress, forward movement",
-    "W_3": "Fire energy, expansion, growth, celebration, communication, leadership, future planning",
-    "W_4": "Fire energy, stability, foundation, security, celebration, harmony, homecoming",
-    "W_5": "Fire energy, competition, conflict, inner strength, challenge, sportsmanship",
-    "W_6": "Fire energy, victory, recognition, public success, achievement, acclaim",
-    "W_7": "Fire energy, defense, courage, conviction, standing ground, moral position",
-    "W_8": "Fire energy, rapid movement, messages, communication, quick action, haste",
-    "W_9": "Fire energy, strength, resilience, protection, readiness, defense",
-    "W_10": "Fire energy, completion, fulfillment, responsibility, burden, success",
-    "W_P": "Fire energy, creative spark, new passion, youthful enthusiasm, opportunity",
-    "W_N": "Fire energy, action, movement, swift change, enthusiasm, adventure",
-    "W_Q": "Fire energy, mature creativity, leadership, confidence, passion, inspiration",
-    "W_K": "Fire energy, mastery, creative leadership, vision, inspiration, authority",
-
-    # Cups (Water energy)
-    "C_A": "Water energy, emotional new beginnings, love, intuition, new relationships, creative flow",
-    "C_2": "Water energy, partnership, harmony, union, emotional connection, balance",
-    "C_3": "Water energy, celebration, community, friendship, emotional abundance, joy",
-    "C_4": "Water energy, emotional security, stability, foundations, home, relationships",
-    "C_5": "Water energy, loss, disappointment, emotional transition, letting go, change",
-    "C_6": "Water energy, emotional support, generosity, sharing, giving, nostalgia",
-    "C_7": "Water energy, choices, reflection, inner wisdom, emotional decision, retreat",
-    "C_8": "Water energy, moving on from emotional past, new opportunities, change, transition",
-    "C_9": "Water energy, emotional satisfaction, dreams fulfilled, wishes come true, contentment",
-    "C_10": "Water energy, emotional completion, family harmony, emotional abundance, fulfillment",
-    "C_P": "Water energy, emotional curiosity, creative intuition, new emotional opportunities",
-    "C_N": "Water energy, emotional action, romance, communication, messages, movement",
-    "C_Q": "Water energy, emotional mastery, compassion, nurturing, mature feelings, wisdom",
-    "C_K": "Water energy, emotional control, stability, mature emotions, relationship mastery",
-
-    # Swords (Air energy)
-    "S_A": "Air energy, mental clarity, new ideas, breakthrough, intellectual power, truth",
-    "S_2": "Air energy, indecision, stalemate, choices, mental conflict, blocked thinking",
-    "S_3": "Air energy, heartbreak, sorrow, painful truth, mental separation, grief",
-    "S_4": "Air energy, rest, meditation, recovery, mental pause, truce",
-    "S_5": "Air energy, victory through cunning, strategy, escape, Pyrrhic victory",
-    "S_6": "Air energy, mental recovery, new paths, moving on, intellectual transition",
-    "S_7": "Air energy, deception, strategy, withdrawal, cunning, intellect, escape",
-    "S_8": "Air energy, mental restriction, feeling trapped, isolation, powerlessness",
-    "S_9": "Air energy, mental anguish, worry, anxiety, sleepless nights, mental burden",
-    "S_10": "Air energy, mental ruin, complete breakdown, disaster, bottom, rock bottom",
-    "S_P": "Air energy, mental curiosity, new ideas, intellectual opportunity, learning",
-    "S_N": "Air energy, intellectual action, communication, messages, change, movement",
-    "S_Q": "Air energy, intellectual mastery, wisdom, emotional clarity, mature thinking",
-    "S_K": "Air energy, mental power, authority, intellectual control, truth, command",
-
-    # Pentacles (Earth energy)
-    "P_A": "Earth energy, material new beginnings, prosperity, opportunity, manifestation",
-    "P_2": "Earth energy, financial balance, juggling resources, flexibility, adaptation",
-    "P_3": "Earth energy, skilled work, craftsmanship, collaboration, team effort, mastery",
-    "P_4": "Earth energy, material security, stability, foundations, conservation, protection",
-    "P_5": "Earth energy, material hardship, poverty, isolation, spiritual seeking",
-    "P_6": "Earth energy, material generosity, giving, sharing, wealth distribution, charity",
-    "P_7": "Earth energy, material patience, waiting, investment, long-term planning, harvest",
-    "P_8": "Earth energy, skill mastery, apprenticeship, detailed work, craftsmanship",
-    "P_9": "Earth energy, material abundance, luxury, success, financial security, comfort",
-    "P_10": "Earth energy, material completion, family wealth, inheritance, legacy, fulfillment",
-    "P_P": "Earth energy, material opportunity, learning, study, practical skills, manifestation",
-    "P_N": "Earth energy, material action, steady progress, reliable work, methodical approach",
-    "P_Q": "Earth energy, material nurturing, practical wisdom, abundance, prosperity management",
-    "P_K": "Earth energy, material mastery, worldly success, enterprise, stability, wealth"
-}
-
-
-# Pre-defined spreads
-SPREADS = {
-    '3-card': [[2, 1, 3]],
-    'cross': [
-        [0, 5, 0],
-        [2, 1, 3],
-        [0, 4, 0]
-    ],
-    'celtic': [
-        [0, 5, 0, 0, 7],
-        [4, 1, 6, 0, 8],
-        [0, 2, 0, 0, 9],
-        [0, 3, 0, 0, 10]
-    ],
-    'single': [[1]],
-    'crowley': [
-        [13,  9,  5,  0,  4,  8, 12],
-        [ 0,  0,  2,  1,  3,  0,  0],
-        [14, 10,  6,  0,  7, 11, 15]
-    ],
-}
-
-_earth = 'Potential Future/Natural Path (Earth)'
-_water = 'Far/Alternate Future Path (Water)'
-_air = 'Psychic Basis/Mutable Influences (Air)'
-_fire = 'Karmic Forces/Cosmic Influences (Fire)'
-_spirit = 'Nature of Circumstances (Spirit)'
-
-SEMANTICS = {
-    '3-card': [['Past/Querent/Situation/Idea', 'Present/Path/Action/Process', 'Future/Potential/Outcome/Aspiration']],
-    'cross': [
-        ['', 'Potential', ''],
-        ['Past', 'Present', 'Future'],
-        ['', 'Core Reason', '']],
-    'celtic': [
-        ['', 'Goal/Potential/Best Outcome', '', '', 'Previous Experiences/Attitudes'],
-        ['Recent Past', 'Present/Theme/Querent\'s Role', 'Near Future', '', "External Influences (Environment/Social)"],
-        ['', 'Primary Obstable/Challenge', '', '', 'Hopes/Fears'],
-        ['', 'Pyschic/Subconscious Foundations of the Issue', '', '', 'Probable/Natural Outcome']
-    ],
-    'single': [['Contemplation on Question/Potential Answer/Guidance']],
-    'crowley': [
-        [_water,  _water,  _water,  '',  _earth,  _earth, _earth],
-        [ '',  '',  _spirit,  'Querent/Present (Spirit)',  _spirit,  '',  ''],
-        [_air, _air,  _air,  '',  _fire, _fire, _fire]
-    ],
-}
-
 
 class DeckLoader:
     """Handles loading and management of tarot deck configurations."""
@@ -359,7 +214,7 @@ class Deck:
             if bundled_deck:
                 self.cards = self._load_deck_from_config(bundled_deck)
             else:
-                self.cards = self._create_deck()
+                raise ValueError("Default deck 'rider-waite' not found in bundled data")
 
     @staticmethod
     def _load_deck_from_config(deck_config: dict[str, Any]) -> list[Card]:
@@ -425,41 +280,6 @@ class Deck:
 
         if not cards:
             raise ValueError("No valid cards found in deck configuration")
-
-        return cards
-
-    def _create_deck(self) -> list[Card]:
-        """Create the standard 78-card tarot deck."""
-        cards = []
-
-        # Major Arcana (0-21)
-        major_arcana = [
-            ("Fool", "0"), ("Magician", "I"), ("High Priestess", "II"), ("Empress", "III"),
-            ("Emperor", "IV"), ("Hierophant", "V"), ("Lovers", "VI"), ("Chariot", "VII"),
-            ("Strength", "VIII"), ("Hermit", "IX"), ("Wheel of Fortune", "X"), ("Justice", "XI"),
-            ("Hanged Man", "XII"), ("Death", "XIII"), ("Temperance", "XIV"), ("Devil", "XV"),
-            ("Tower", "XVI"), ("Star", "XVII"), ("Moon", "XVIII"), ("Sun", "XIX"),
-            ("Judgement", "XX"), ("World", "XXI")
-        ]
-
-        for name, value in major_arcana:
-            keywords = MAJOR_ARCANA[name]
-            cards.append(Card(name, 'major', None, value, keywords))
-
-        # Minor Arcana - 4 suits, 14 cards each
-        suits = {'W': 'Wands', 'C': 'Cups', 'S': 'Swords', 'P': 'Pentacles'}
-        values = [
-            ('A', 'Ace'), ('2', 'Two'), ('3', 'Three'), ('4', 'Four'), ('5', 'Five'),
-            ('6', 'Six'), ('7', 'Seven'), ('8', 'Eight'), ('9', 'Nine'), ('10', 'Ten'),
-            ('P', 'Page'), ('N', 'Knight'), ('Q', 'Queen'), ('K', 'King')
-        ]
-
-        for suit_letter, suit_name in suits.items():
-            for value_letter, value_name in values:
-                card_name = f"{value_name} of {suit_name}"
-                desc_key = f"{suit_letter}_{value_letter}"
-                keywords = MINOR_ARCANA[desc_key]
-                cards.append(Card(card_name, 'minor', suit_letter, value_letter, keywords))
 
         return cards
 
@@ -906,9 +726,6 @@ class TarotDivination:
         # Get semantics matrix
         if semantic_config and 'semantics' in semantic_config:
             semantics_matrix = semantic_config['semantics']
-        elif spread_input in SEMANTICS:
-            # Fallback to hardcoded SEMANTICS for legacy spreads
-            semantics_matrix = SEMANTICS.get(spread_input)
         else:
             semantics_matrix = None
 
@@ -937,10 +754,6 @@ def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|N
         semantic_config = {k: v for k, v in bundled_spread.items() if k != 'layout'}
         return layout, semantic_config
 
-    # Check built-in spreads
-    if spread_input in SPREADS:
-        return SPREADS[spread_input], None
-
     # Try to load custom spread
     loader = SpreadLoader()
     custom_spread = loader.load_spread(spread_input)
@@ -954,7 +767,7 @@ def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|N
         layout = ast.literal_eval(spread_input)
         return layout, None
     except (ValueError, SyntaxError):
-        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {list(SPREADS.keys())}, custom spread name, or custom matrix.")
+        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {BundledDataLoader.list_spreads()}, custom spread name, or custom matrix.")
 
 
 def resolve_card_codes(codes: str) -> list[Card]:
@@ -1010,7 +823,7 @@ def create_parser() -> ArgumentParser:
     parser.add_argument("--invoke", action="store_true",
                        help="Use default invocation to influence reading (By the wisdom of Hermes-Thoth and foresight of Prometheus)")
     parser.add_argument("--spread", default="3-card",
-                       help=f"Spread layout (default: 3-card). Available: {list(SPREADS.keys())} or custom matrix")
+                       help=f"Spread layout (default: 3-card). Available: {BundledDataLoader.list_spreads()} or custom matrix")
     parser.add_argument("--random", type=int, default=8,
                        help="Add N random bytes to RNG seed for entropy (default: 8)")
     parser.add_argument("--no-keywords", action="store_true",

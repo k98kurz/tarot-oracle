@@ -12,13 +12,10 @@ from sys import stderr
 from typing import Any, cast
 
 from tarot_oracle.config import config
+from tarot_oracle.data_loader import BundledDataLoader
 from tarot_oracle.loaders import InvocationLoader
 from tarot_oracle.tarot import (
     Card,
-    MAJOR_ARCANA,
-    MINOR_ARCANA,
-    SEMANTICS,
-    SPREADS,
     SpreadRenderer,
     TarotDivination,
     resolve_spread,
@@ -505,7 +502,7 @@ def create_oracle_parser() -> ArgumentParser:
     # Core question and spread
     parser.add_argument("question", help="Question for the oracle")
     parser.add_argument("--spread", default="3-card",
-                       help=f"Spread layout (default: 3-card). Available: {list(SPREADS.keys())} or custom matrix")
+                       help=f"Spread layout (default: 3-card). Available: {BundledDataLoader.list_spreads()} or custom matrix")
 
     # Oracle-specific features
     parser.add_argument("--provider", choices=["gemini", "openrouter", "ollama"],
