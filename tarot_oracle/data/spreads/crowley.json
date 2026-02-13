@@ -1,6 +1,6 @@
 {
   "name": "crowley",
-  "description": "Thoth deck style 21-card astrological spread",
+  "description": "Golden Dawn style 15-card spread",
   "layout": [
     [13,  9, 5, 0, 4,  8, 12],
     [ 0,  0, 2, 1, 3,  0,  0],
@@ -17,5 +17,9 @@
     ["${water}",  "${water}",  "${water}",  "",  "${earth}",  "${earth}", "${earth}"],
     [ "",  "",  "${spirit}",  "Querent/Present (Spirit)",  "${spirit}",  "",  ""],
     ["${air}", "${air}",  "${air}",  "",  "${fire}", "${fire}", "${fire}"]
+  ],
+  "guidance": [
+    "A preponderence of Major Arcana indicates cosmic/karmic forces",
+    "The presence of royal cards (Page, Knight, Queen, King) indicates social conditions/interactions"
   ]
 }
