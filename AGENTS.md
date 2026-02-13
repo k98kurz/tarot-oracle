@@ -2,6 +2,10 @@
 
 This file provides essential information for agentic coding systems working in the tarot-oracle repository.
 
+##  Prerequisites
+- **Virtual environment activation**: Always run `source venv/bin/activate` before executing any Python or pip commands
+- This ensures commands use the correct Python environment and dependencies
+
 ## Build, Lint, and Test Commands
 
 ### Running Tests
@@ -65,9 +69,9 @@ except ImportError:
     genai = None
 
 # Local from imports (alphabetized)
-from tarot_oracle.config import config
-from tarot_oracle.loaders import SpreadLoader
-from tarot_oracle.tarot import Deck
+from .config import config
+from .loaders import SpreadLoader
+from .tarot import Deck
 
 # Bare imports (alphabetized)
 import ast
