@@ -9,7 +9,7 @@ from .tarot import (
     SemanticAdapter,
 )
 from .oracle import Oracle
-from .config import Config
+
 from .version import version
 # Custom exceptions removed - using standard TypeError and ValueError instead
 

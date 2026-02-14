@@ -36,19 +36,20 @@ This file provides essential information for agentic coding systems working in t
 
 Example:
 ```python
-from typing import Any, cast
+from crossconfig import get_config, ConfigProtocol
 
-def load_deck(name: str) -> dict[str, Any] | None:
-    """Load deck by name."""
-    result = process_deck(name)
-    return cast(dict[str, Any], result) if result else None
+def config() -> ConfigProtocol:
+    """Get crossconfig instance, loading config if keys not initialized."""
+    conf = get_config("tarot-oracle")
+    if len(conf.list()) == 0:
+        conf.load()
+    return conf
 ```
 
 ### Imports
 - **All `from x import y` style imports first, alphabetized**
 - **All `import x` style imports last, alphabetized**
 - Group by: standard library, third-party (with fallback handling for optional deps), then local
-- At package level, import config instance: `from tarot_oracle.config import config`
 
 Example:
 ```python
@@ -69,7 +70,6 @@ except ImportError:
     genai = None
 
 # Local from imports (alphabetized)
-from .config import config
 from .loaders import SpreadLoader
 from .tarot import Deck
 
@@ -107,21 +107,23 @@ class TarotError(Exception):  # AVOID THIS
 ```
 
 ### Security Best Practices
-- **Path traversal prevention**: Sanitize filenames with regex before use
-- **Directory validation**: Ensure resolved paths are within allowed directories
-- **Filename sanitization**: Remove dangerous characters (`..`, `/`, `\`, etc.)
+- **Path traversal prevention**: Use `sanitize_filename()` from helpers before using filenames
+- **Directory validation**: Use `validate_path_security()` from helpers to validate paths
+- **Filename sanitization**: Handled by `sanitize_filename()` which removes dangerous characters
 
 Example:
 ```python
-import re
 from pathlib import Path
+from .helpers import sanitize_filename, validate_path_security, config
 
-safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
-safe_filename = safe_filename.lstrip('.-')
+# Sanitize filename
+safe_filename = sanitize_filename(filename)
+if safe_filename is None:
+    return None
 
+# Validate path security
 resolved = path.resolve()
-if not (resolved.is_relative_to(Path.cwd()) or resolved.is_relative_to(config.home_dir)):
-    raise ValueError(f"Attempted to access file outside allowed directories: {path}")
+validate_path_security(resolved, str(path))
 ```
 
 ### File I/O
@@ -190,8 +192,9 @@ class TestLoaders(unittest.TestCase):
 ```
 
 ### Configuration
-- Use centralized config: `from tarot_oracle.config import config`
-- Access config values via properties or `get()` method
+- Use `from .helpers import config`
+- The `config()` function handles lazy loading automatically when `len(conf.list()) == 0`
+- Access config values via `get()` method or `path()` for directories
 - Config precedence: defaults → config file → environment variables → runtime
 
 ### CLI Patterns
@@ -203,15 +206,16 @@ class TestLoaders(unittest.TestCase):
 - `tarot_oracle/` - Main package
   - `tarot.py` - Core tarot functionality (cards, decks, spreads)
   - `oracle.py` - AI integration (Gemini, OpenRouter, Ollama)
-  - `config.py` - Centralized configuration management
   - `loaders.py` - Custom content loaders (invocations, spreads, decks)
-  - `cli.py` - Unified CLI entry point
   - `data_loader.py` - Bundled data loader for package resources
+  - `helpers.py` - Shared helper functions (config, security, utilities)
+  - `version.py` - Package version information
 - `tests/` - Test modules (unittest framework)
 
 ## Important Notes
 - **No comments in code** unless explicitly requested
 - This project is in active development (v0.1.0 work-in-progress)
-- All file operations must validate paths to prevent directory traversal
+- All file operations must validate paths to prevent directory traversal (use helpers)
 - Always use UTF-8 encoding for file I/O
 - Use standard Python exceptions only - no custom exceptions
+- Use helper functions from `helpers.py` for common patterns (config, security, directories)

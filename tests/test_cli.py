@@ -289,9 +289,9 @@ class TestOracleCLI(unittest.TestCase):
         }
         self.mock_oracle_class.return_value = self.mock_instance
 
-        self.config_patcher = patch('tarot_oracle.oracle.config')
+        self.config_patcher = patch('crossconfig.get_config')
         self.mock_config = self.config_patcher.start()
-        self.mock_config.autosave_sessions = False
+        self.mock_config.return_value.autosave_sessions = False
 
     def tearDown(self):
         """Clean up patches."""

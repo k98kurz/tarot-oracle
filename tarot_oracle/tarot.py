@@ -9,14 +9,14 @@ from sys import argv, stdin, stderr
 from time import time
 from typing import Any, NoReturn, cast
 
-from .config import config
-from .data_loader import BundledDataLoader
-from .loaders import SpreadLoader
-
 import ast
 import json
 import os
 import re
+
+from .data_loader import BundledDataLoader
+from .helpers import config, sanitize_filename, validate_path_security, ensure_config_directories
+from .loaders import SpreadLoader
 
 
 class DeckLoader:
@@ -24,29 +24,26 @@ class DeckLoader:
 
     def resolve_deck_path(self, filename: str) -> str | None:
         """Resolve deck filename using search order with security validation from
-            current directory and ~/.tarot-oracle/decks/, returning None if
+            current directory and ~/.config/tarot-oracle/decks/, returning None if
             not found or invalid.
         """
-        # Sanitize filename to prevent path traversal
-        safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
-        safe_filename = safe_filename.lstrip('.-')
-        if not safe_filename:
+        safe_filename = sanitize_filename(filename)
+        if safe_filename is None:
             return None
 
+        conf = config()
         search_paths = [
             Path.cwd() / safe_filename,
             Path.cwd() / f"{safe_filename}.json",
-            config.decks_dir / safe_filename,
-            config.decks_dir / f"{safe_filename}.json"
+            Path(conf.path("decks")) / safe_filename,
+            Path(conf.path("decks")) / f"{safe_filename}.json"
         ]
 
         for path in search_paths:
             if path.exists() and path.is_file():
                 resolved = path.resolve()
-                # Ensure path is within expected directories
-                if (resolved.is_relative_to(Path.cwd()) or
-                    resolved.is_relative_to(config.home_dir)):
-                    return str(resolved)
+                validate_path_security(resolved, filename)
+                return str(resolved)
         return None
 
     @staticmethod
@@ -76,15 +73,16 @@ class DeckLoader:
             raise ValueError(f"Error loading deck file: {e} (file: {path})")
 
     def list_available_decks(self) -> list[dict[str, str]]:
-        """Scan ~/.tarot-oracle/decks/ and return deck metadata."""
-        decks_dir = config.decks_dir
+        """Scan ~/.config/tarot-oracle/decks/ and return deck metadata."""
+        conf = config()
+        decks_dir = Path(conf.path("decks"))
 
         if not decks_dir.exists() or not decks_dir.is_dir():
             return []
 
         decks = []
 
-        # Find all .json files in the decks directory
+        # Find all .json files in decks directory
         for json_file in decks_dir.glob("*.json"):
             try:
                 deck_config = DeckLoader.load_deck_config(str(json_file))
@@ -175,9 +173,8 @@ class Deck:
         Searches bundled decks first, then user config directory.
         Returns deck config dict or raises ValueError if not found.
         """
-        safe_name = re.sub(r'[^a-zA-Z0-9._-]', '', deck_name)
-        safe_name = safe_name.lstrip('.-')
-        if not safe_name:
+        safe_name = sanitize_filename(deck_name)
+        if safe_name is None:
             raise ValueError(f"Invalid deck name: '{deck_name}'")
 
         bundled_deck = BundledDataLoader.load_deck(safe_name)
@@ -190,14 +187,15 @@ class Deck:
             return DeckLoader.load_deck_config(deck_path)
 
         bundled_decks = BundledDataLoader.list_decks()
+        conf = config()
         error_msg = f"Deck '{deck_name}' not found.\n\n"
         error_msg += f"Available bundled decks: {', '.join(bundled_decks)}\n\n"
         error_msg += f"Searched paths:\n"
         error_msg += f"  Bundled decks: {safe_name}\n"
         error_msg += f"  ./{safe_name}\n"
         error_msg += f"  ./{safe_name}.json\n"
-        error_msg += f"  {config.decks_dir}/{safe_name}\n"
-        error_msg += f"  {config.decks_dir}/{safe_name}.json"
+        error_msg += f"  {conf.path('decks')}/{safe_name}\n"
+        error_msg += f"  {conf.path('decks')}/{safe_name}.json"
         raise ValueError(error_msg)
 
     def __init__(self, deck_path: str | None = None, deck_config: dict[str, Any] | None = None) -> None:
@@ -866,6 +864,8 @@ def main(args=None) -> int:
         args = parser.parse_args()
     else:
         args = parser.parse_args(args)
+
+    ensure_config_directories()
 
     # Handle list-decks mode
     if args.list_decks:

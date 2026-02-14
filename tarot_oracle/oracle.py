@@ -11,8 +11,14 @@ from pathlib import Path
 from sys import stderr
 from typing import Any, cast
 
-from tarot_oracle.config import config
+import json
+import os
+import re
+import requests
+import sys
+
 from tarot_oracle.data_loader import BundledDataLoader
+from tarot_oracle.helpers import config, ensure_config_directories
 from tarot_oracle.loaders import InvocationLoader
 from tarot_oracle.tarot import (
     Card,
@@ -145,14 +151,14 @@ class OpenRouterClient:
 
         Raises ValueError on API errors (401 for invalid key, 429 for rate limit, network/timeout issues)."""
         url = f"{self.base_url}/chat/completions"
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/tarot-oracle/tarot-oracle",
             "X-Title": "Tarot Oracle"
         }
-        
+
         payload = {
             "model": model or self.model,
             "messages": [
@@ -164,10 +170,10 @@ class OpenRouterClient:
             "max_tokens": 2048,
             "temperature": 0.7
         }
-        
+
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=timeout)
-            
+
             if response.status_code == 200:
                 result = response.json()
                 if "choices" in result and len(result["choices"]) > 0:
@@ -182,7 +188,7 @@ class OpenRouterClient:
                 raise ValueError(f"OpenRouter API rate limit exceeded. Retry after: {retry_after}")
             else:
                 raise ValueError(f"OpenRouter API returned status {response.status_code}: {response.text}")
-                
+
         except requests.exceptions.Timeout:
             raise ValueError(f"OpenRouter API request timed out after {timeout} seconds")
         except requests.exceptions.RequestException as e:
@@ -299,7 +305,7 @@ def save_oracle_session(question: str, spread_type: str, result: dict[str, Any],
         card_codes = extract_card_codes_for_filename(result['legend_display'])
         filename = generate_session_filename(card_codes)
         filepath = os.path.join(save_location, filename)
-        
+
         # Validate filepath is safe
         save_path = Path(save_location).resolve()
         full_path = Path(filepath).resolve()
@@ -356,28 +362,30 @@ class Oracle:
         self.tarot = TarotDivination()
         self.invocation_manager = InvocationManager()
 
+        conf = config()
+
         # Provider selection
-        self.provider = provider or config.provider
+        self.provider = provider or conf.get("provider", os.getenv("ORACLE_PROVIDER", "gemini"))
 
         if self.provider == "gemini":
-            api_key = api_key or config.google_ai_api_key
+            api_key = api_key or conf.get("google_ai_api_key", os.getenv("GOOGLE_AI_API_KEY"))
             if not api_key:
                 raise ValueError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider")
             if genai is None:
                 raise ImportError("google-genai package not installed. Install with: pip install google-genai")
-            self.client = GeminiClient(api_key, model or "gemini-3-flash")
+            self.client = GeminiClient(str(api_key), model or "gemini-3-flash")
             self.default_model = model or "gemini-3-flash"
 
         elif self.provider == "openrouter":
-            api_key = api_key or config.openrouter_api_key
+            api_key = api_key or conf.get("openrouter_api_key", os.getenv("OPENROUTER_API_KEY"))
             if not api_key:
                 raise ValueError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider")
-            self.client = OpenRouterClient(api_key, model or "z-ai/glm-4.5-air:free")
+            self.client = OpenRouterClient(str(api_key), model or "z-ai/glm-4.5-air:free")
             self.default_model = model or "z-ai/glm-4.5-air:free"
 
         elif self.provider == "ollama":
-            host = ollama_host or config.ollama_host
-            self.client = OllamaClient(host)
+            host = ollama_host or conf.get("ollama_host", os.getenv("OLLAMA_HOST", "localhost:11434"))
+            self.client = OllamaClient(str(host))
             self.default_model = model or "mistral"
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
@@ -451,7 +459,7 @@ Pay special attention to the positional meanings and how they affect each card's
         # Custom invocation can be passed via kwargs as either text or name
         custom_invocation = kwargs.get('invocation')
         invocation_name = kwargs.get('invocation_name')
-        
+
         if invocation_name:
             invocation = self.invocation_manager.get_invocation(invocation_name)
         elif custom_invocation:
@@ -574,6 +582,8 @@ def main(args=None) -> int:
     else:
         args = parser.parse_args(args)
 
+    ensure_config_directories()
+
     # Create oracle instance with provider-specific options
     oracle = Oracle(
         provider=args.provider,
@@ -629,8 +639,10 @@ def main(args=None) -> int:
         print_interpretation(result["interpretation"])
 
     # Determine save behavior
-    should_save = config.autosave_sessions
-    save_location = config.autosave_location
+    conf = config()
+    autosave = conf.get("autosave_sessions", os.getenv("TAROT_ORACLE_AUTOSAVE", "true"))
+    should_save = autosave if isinstance(autosave, bool) else str(autosave).lower() in ["true", "1", "yes"]
+    save_location = conf.get("autosave_location", os.getenv("TAROT_ORACLE_AUTOSAVE_LOCATION", str(Path.home() / "oracles")))
 
     if args.save:
         should_save = True
@@ -642,7 +654,7 @@ def main(args=None) -> int:
 
     # Save session if requested
     if should_save:
-        if not save_oracle_session(args.question, args.spread, result, save_location):
+        if not save_oracle_session(args.question, args.spread, result, str(save_location)):
             # Warning already printed in save function
             pass
 
