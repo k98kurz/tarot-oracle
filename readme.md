@@ -4,16 +4,6 @@ A comprehensive tarot divination system with AI-powered interpretation and
 semantic analysis. Features custom deck loading, multiple spread configurations,
 and integration with various AI providers for guided readings.
 
-This project was my first project with OpenCode, intended mostly as an opportunity
-to learn the newest addition to my dev tools. It is still necessary to understand
-fundamental software development paradigms and be competent with a code editor in
-my experience, but the tools can be pushed pretty far if you can provide solid
-guardrails, good prompts, and a bit of occasional manual intervention.
-
-## Status
-
-Issues are tracked in the project repository. Historical changes can be found in the changelog.
-
 ## Features
 
 ### Core Functionality
@@ -34,63 +24,166 @@ Issues are tracked in the project repository. Historical changes can be found in
 - User-created deck configurations
 - Guidance rules for focused/relevant interpretations
 
+## Quick Start
+
+Get started with Tarot Oracle in 5 minutes.
+
+### Prerequisites
+
+- Python 3.10 or higher
+- For AI interpretation: Choose one option below
+
+### Option 1: Ollama (Recommended for Privacy)
+
+Ollama runs locally on your machine. No API keys required and your readings never leave your computer.
+
+```bash
+# Install Ollama (visit ollama.ai for instructions)
+# Pull a recommended small model
+ollama pull qwen3:0.6b
+
+# Install Tarot Oracle
+pip install tarot-oracle
+
+# Run your first reading with AI interpretation
+oracle "What will today bring?" --interpret
+
+# Make interpretation default
+oracle --set-config interpret true
+```
+
+### Option 2: OpenRouter
+
+Access a wide variety of cloud-based models through OpenRouter.
+
+```bash
+# Install Tarot Oracle
+pip install tarot-oracle
+
+# Configure OpenRouter
+oracle --set-config provider openrouter
+oracle --set-config openrouter_model google/gemini-2.5-flash # optional; openrouter/free is default
+
+# Get your API key from openrouter.ai
+oracle --set-config openrouter_api_key your-api-key-here
+# or use an environment variable (on *nix systems)
+export OPENROUTER_API_KEY=your-api-key-here
+
+# Run your first reading with interpretation
+oracle "What will today bring?" --interpret
+```
+
+### Option 3: Google Gemini
+
+Use Google's Gemini models for interpretation.
+
+```bash
+# Install Tarot Oracle with Gemini support
+pip install tarot-oracle[gemini]
+
+# Configure Gemini
+oracle --set-config provider gemini
+
+# Get your API key from ai.google.dev
+oracle --set-config google_ai_api_key your-api-key-here
+oracle --set-config gemini_model gemini-2.5-flash-lite # optional; gemini-3-flash is default
+# or use an environment variable (on *nix systems)
+export GOOGLE_AI_API_KEY=your-api-key-here
+
+# Run your first reading with interpretation
+oracle "What will today bring?" --interpret
+```
+
+### Try a Reading Without AI
+
+You can also use Tarot Oracle without AI interpretation:
+
+```bash
+# Simple 3-card reading (no AI needed)
+tarot "What will today bring?"
+
+# Celtic Cross spread
+tarot "Question about career" --spread celtic
+```
+
+If you want to use the session saving features without AI interpretation:
+```bash
+# Simple 3-card reading
+oracle --no-interpret "What will today bring?"
+
+# Golden Dawn spread
+oracle --no-interpret --spread crowley "I seek general guidance."
+```
+
 ## Usage
 
-Install with `pip install tarot-oracle`, then configure your preferred AI
-provider. The project provides both CLI tools and Python APIs.
+Tarot Oracle provides two main CLI tools: `tarot` for traditional readings and
+`oracle` for AI-powered interpretations or to use the session saving features.
 
 ### Basic Reading
 
 ```bash
-# Generate a Celtic Cross reading
-tarot "What guidance do you seek?" --spread celtic
+# Generate a 3-card reading (no AI)
+tarot "What guidance do you seek?"
 
-# Use a specific deck
-tarot "Question about career" --deck rider-waite
+# Use a specific spread
+tarot "Question about career" --spread celtic
 
-# Get AI interpretation
-oracle "Life path question" --provider gemini --interpret
+# Get AI interpretation with oracle
+oracle "Life path question" --interpret
 ```
 
-### Custom Decks
+For more CLI options, see the [CLI Reference](#cli-reference) section below.
 
-```python
-from tarot_oracle.tarot import DeckLoader, TarotDivination
+## Choosing Your AI Provider
 
-# Load a custom deck by name (searches local and config directories)
-loader = DeckLoader()
-deck = loader.load_deck("my-custom-deck")
+The `oracle` CLI supports three AI providers for interpreting tarot readings. You should have already configured one of these in the [Quick Start](#quick-start) section above.
 
-# Or load by file path
-from tarot_oracle.tarot import Deck
-deck = Deck(deck_path="my-custom-deck.json")
+### Ollama
 
-# Use in reading
-divination = TarotDivination(deck_config=None)
-```
+Ollama is the default provider and runs locally on your machine. No API keys required and your readings remain private.
 
-### AI Integration
+**Recommended small models:**
+- qwen3:0.6b (fastest, tested)
+- granite4:1b-h (good balance of speed and intelligence)
 
-```python
-from tarot_oracle.oracle import Oracle
+**Models to avoid:**
+- `graphite4:350-h`: refused to interpret readings
+- `tinyllama:latest`: unintelligible output, poor performance
 
-# Use Gemini for interpretation
-oracle = Oracle(provider="gemini", api_key="your-api-key")
-result = oracle.perform_divinatory_reading(
-    question="Your question",
-    spread_type="3-card",
-    interpret=True
-)
+For larger models, you may need to increase the timeout with the `--timeout` setting.
 
-print(result["spread_display"])
-print(result["legend_display"])
-if "interpretation" in result:
-    print(result["interpretation"])
-```
+### OpenRouter
+
+OpenRouter provides access to a wide variety of cloud-based models through a
+unified API. Requires an API key from openrouter.ai.
+
+Popular models include `google/gemini-3-flash-preview`, `anthropic/claude-3-haiku`,
+and many others. Use `oracle --list-models` with OpenRouter configured to see all
+available options. There are a variety of free models to choose from; by default,
+the `openrouter/free` will route to an available free model automatically.
+
+### Google Gemini
+
+Gemini provides Google's AI models for interpretation. Requires an API key from
+[AI Studio](https://aistudio.google.com/app/api-keys) and the optional
+`google-generativeai` package.
+
+To install with Gemini support: `pip install tarot-oracle[gemini]`
+
+### Cloud Provider Considerations
+
+When using cloud providers (OpenRouter or Gemini):
+- Your questions and readings are sent to external servers
+- Review each provider's privacy policy
+- API costs may apply depending on usage
+- Internet connection required
 
 ## Configuration
 
-Manage oracle settings via CLI commands:
+Manage oracle settings via CLI commands. You can view current settings with `oracle --config`.
+
+### Configuration Commands
 
 ```bash
 # Display current configuration
@@ -122,6 +215,8 @@ oracle --unset-config openrouter_api_key
 
 ### Environment Variables
 
+Configuration can also be set via environment variables:
+
 - `ORACLE_PROVIDER` - AI provider to use (gemini, ollama, openrouter)
 - `GOOGLE_AI_API_KEY` - Gemini API key
 - `OPENROUTER_API_KEY` - OpenRouter API key
@@ -130,134 +225,7 @@ oracle --unset-config openrouter_api_key
 - `TAROT_ORACLE_AUTOSAVE_LOCATION` - Directory for saving sessions (default: ~/oracles)
 - `TAROT_ORACLE_INTERPRET` - Enable AI interpretation by default (default: false)
 
-### Python API
-
-```python
-from tarot_oracle import TarotDivination, SpreadRenderer
-from tarot_oracle.data_loader import BundledDataLoader
-from time import time
-
-# Create a reading
-divination = TarotDivination()
-question = "What guidance do you seek?"
-timestamp = str(int(time()))
-spread_config = BundledDataLoader.load_spread("celtic")
-layout = spread_config['layout']
-
-# Draw cards
-seed = divination.create_seed(timestamp, question)
-drawn_cards = divination.draw_cards_for_reading(seed, layout)
-
-# Render the spread
-output = SpreadRenderer.render_spread(drawn_cards, layout)
-print(output)
-```
-
-## LLM Interpretation Configuration
-
-The `oracle` CLI supports three AI providers for interpreting tarot readings. Each provider has different configuration options and model considerations.
-
-### Quick Start (Ollama - Recommended for Privacy)
-
-Ollama is the default provider and runs locally on your machine. No API keys required.
-
-```bash
-# Install Ollama and pull a recommended model
-ollama pull qwen3:0.6b
-
-# Run a reading with interpretation
-oracle "What guidance do you seek?" --interpret
-
-# If you want to always use interpretation, configure it
-oracle --set-config interpret true
-```
-
-### Local Model Recommendations (Ollama)
-
-The following small models have been tested and are verified to work:
-
-- qwen3:0.6b
-- granite4:1b-h
-
-Note that larger models may require adjusting the timeout.
-
-I recommend avoiding the following models:
-
-- `graphite4:350-h`: it refused to interpret
-- `tinyllama:latest`: fairly unintelligent model with somewhat unintelligible
-output and worse performance than qwen3:0.6b
-
-### Configuration Examples
-
-```bash
-# Configure Ollama with recommended model
-oracle --set-config provider ollama
-oracle --set-config ollama_model qwen3:0.6b
-
-# Configure OpenRouter (requires API key)
-oracle --set-config provider openrouter
-oracle --set-config openrouter_api_key your-api-key-here
-oracle --set-config openrouter_model google/gemini-flash-1.5
-
-# Configure Gemini (requires API key)
-oracle --set-config provider gemini
-oracle --set-config google_ai_api_key your-api-key-here
-
-# Enable interpretation by default
-oracle --set-config interpret true
-```
-
-### Troubleshooting Model Issues
-
-**"Interpretation was not available" message:**
-- Check that model is installed (Ollama): `ollama list`
-- Verify API key is valid (cloud providers): `oracle --config`
-- Try a different model if current one refuses tarot interpretation
-
-**Model fails to interpret spreads:**
-- Some models have safety filters or lack sufficient intelligence
-- Switch to a recommended model
-
-**Slow interpretation:**
-- Use smaller/faster models (qwen3:0.6b is very fast)
-- Reduce spread size (single or 3-card instead of Celtic Cross)
-- For Ollama, ensure your machine has adequate RAM
-
-## CLI Reference
-
-Run `tarot --help` or `oracle --help` for complete option details.
-
-### Common Options
-
-Both tools support these options:
-- `--spread TYPE` - Spread layout (default: 3-card)
-- `--deck NAME` - Use specific deck (tarot only)
-- `--reversed` - Allow reversed cards
-- `--random N` - Add N random bytes to seed
-
-### Oracle-Specific Options
-
-- `--provider TYPE` - AI provider (gemini, ollama, openrouter)
-- `--interpret` / `--no-interpret` - Generate AI interpretation
-- `--model NAME` - Specific model to use
-- `--invocation TEXT` - Custom invocation text
-- `--invocation_name NAME` - Use named invocation
-- `--save` / `--no-save` - Force save or skip saving session
-- `--config` - Display current configuration
-- `--list-models` - List available models
-- `--set-config KEY VALUE` - Set configuration
-- `--unset-config KEY` - Remove configuration
-
-### Tarot-Specific Options
-
-- `--lookup CODES` - Look up card codes (CSV format)
-- `--list-decks` - List available decks
-- `--list-spreads` - List available spreads
-- `--export-deck NAME` - Export bundled deck to stdout
-- `--export-spread NAME` - Export bundled spread to stdout
-- `--json` - Output in JSON format
-- `--no-keywords` - Hide card keywords
-- `--invoke` - Use default invocation
+Environment variables take precedence over configuration file values.
 
 ## Custom Content
 
@@ -311,6 +279,11 @@ Example deck configuration:
 List available decks:
 ```bash
 tarot --list-decks
+```
+
+Export the default deck to use as a scaffold:
+```bash
+tarot --export-deck rider-waite > rider-waite.json
 ```
 
 Use custom deck:
@@ -375,9 +348,139 @@ This is the structure of the "crowley" spread bundled with the library:
 }
 ```
 
-The text output of the tarot reading includes  semantic headings, grouping together
+The text output of the tarot reading includes semantic headings, grouping together
 all cards in positions with the same semantic hint. Guidance text is then displayed
 below.
+
+## Advanced Usage
+
+### Python API
+
+The tarot_oracle package provides a Python API for programmatic access.
+
+#### Custom Decks
+
+```python
+from tarot_oracle.tarot import DeckLoader, TarotDivination
+
+# Load a custom deck by name (searches local and config directories)
+loader = DeckLoader()
+deck = loader.load_deck("my-custom-deck")
+
+# Or load by file path
+from tarot_oracle.tarot import Deck
+deck = Deck(deck_path="my-custom-deck.json")
+
+# Use in reading
+divination = TarotDivination(deck_config=None)
+```
+
+#### AI Integration
+
+```python
+from tarot_oracle.oracle import Oracle
+
+# Use Gemini for interpretation
+oracle = Oracle(provider="gemini", api_key="your-api-key")
+result = oracle.perform_divinatory_reading(
+    question="Your question",
+    spread_type="3-card",
+    interpret=True
+)
+
+print(result["spread_display"])
+print(result["legend_display"])
+if "interpretation" in result:
+    print(result["interpretation"])
+```
+
+#### Direct Spread Rendering
+
+```python
+from tarot_oracle import TarotDivination, SpreadRenderer
+from tarot_oracle.data_loader import BundledDataLoader
+from time import time
+
+# Create a reading
+divination = TarotDivination()
+question = "What guidance do you seek?"
+timestamp = str(int(time()))
+spread_config = BundledDataLoader.load_spread("celtic")
+layout = spread_config['layout']
+
+# Draw cards
+seed = divination.create_seed(timestamp, question)
+drawn_cards = divination.draw_cards_for_reading(seed, layout)
+
+# Render the spread
+output = SpreadRenderer.render_spread(drawn_cards, layout)
+print(output)
+```
+
+## CLI Reference
+
+Run `tarot --help` or `oracle --help` for complete option details.
+
+### Common Options
+
+Both tools support these options:
+- `--spread TYPE` - Spread layout (default: 3-card)
+- `--deck NAME` - Use specific deck (tarot only)
+- `--reversed` - Allow reversed cards
+- `--random N` - Add N random bytes to seed
+
+### Tarot-Specific Options
+
+- `--lookup CODES` - Look up card codes (CSV format)
+- `--list-decks` - List available decks
+- `--list-spreads` - List available spreads
+- `--export-deck NAME` - Export bundled deck to stdout
+- `--export-spread NAME` - Export bundled spread to stdout
+- `--json` - Output in JSON format
+- `--no-keywords` - Hide card keywords
+- `--invoke` - Use default invocation
+
+### Oracle-Specific Options
+
+- `--provider TYPE` - AI provider (gemini, ollama, openrouter)
+- `--interpret` / `--no-interpret` - Generate or skip AI interpretation
+- `--model NAME` - Specific model to use
+- `--invocation TEXT` - Custom invocation text
+- `--invocation_name NAME` - Use named invocation
+- `--save` / `--no-save` - Force save or skip saving session
+- `--config` - Display current configuration
+- `--list-models` - List available models
+- `--set-config KEY VALUE` - Set configuration
+- `--unset-config KEY` - Remove configuration
+
+## Troubleshooting
+
+### Model Issues
+
+**"Interpretation was not available" message:**
+- Check that model is installed (Ollama): `ollama list`
+- Verify API key is valid (cloud providers): `oracle --config`
+- Try a different model if current one refuses tarot interpretation
+
+**Model fails to interpret spreads:**
+- Some models have safety filters or lack sufficient intelligence
+- Switch to a recommended model
+
+**Slow interpretation:**
+- Use smaller/faster models (qwen3:0.6b is very fast)
+- Reduce spread size (single or 3-card instead of Celtic Cross)
+- For Ollama, ensure your machine has adequate RAM
+
+### Configuration Issues
+
+**Configuration not saving:**
+- Ensure config directory exists: `~/.config/tarot-oracle/`
+- Check file permissions on config directory
+
+**Provider not working:**
+- Verify provider is correctly set: `oracle --config`
+- For cloud providers, check API key validity
+- For Ollama, check that server is running: `curl http://localhost:11434`
 
 ## Development
 
@@ -392,6 +495,22 @@ To test, clone the repo, install dependencies, and run:
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Devlog Note
+
+This project was my first project with OpenCode, intended mostly as an opportunity
+to learn the newest addition to my dev tools. It is still necessary to understand
+fundamental software development paradigms and be competent with a code editor in
+my experience, but the tools can be pushed pretty far if you can provide solid
+guardrails, good prompts, and a bit of occasional manual intervention.
+
+## Contributing
+
+Check out the [Pycelium discord server](https://discord.gg/b2QFEJDX69). If you
+experience a problem, please discuss it on the Discord server. All suggestions
+for improvement are also welcome, and the best place for that is also Discord.
+If you experience a bug and do not use Discord, open an issue or discussion on
+Github.
 
 ## ISC License
 

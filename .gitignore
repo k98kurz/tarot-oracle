@@ -8,3 +8,4 @@ test_env*
 ralph.lock.json
 *.md
 !readme.md
+!changelog.md
