@@ -8,15 +8,16 @@ from secrets import token_bytes
 from sys import argv, stdin, stderr
 from time import time
 from typing import Any, NoReturn, cast
+from .data_loader import BundledDataLoader
+from .helpers import (
+    config, sanitize_filename, validate_path_security, ensure_config_directories
+)
+from .loaders import SpreadLoader
 
 import ast
 import json
 import os
 import re
-
-from .data_loader import BundledDataLoader
-from .helpers import config, sanitize_filename, validate_path_security, ensure_config_directories
-from .loaders import SpreadLoader
 
 
 class DeckLoader:
@@ -89,7 +90,9 @@ class DeckLoader:
                 decks.append({
                     "filename": json_file.name,
                     "name": deck_config.get("name", "Unnamed Deck"),
-                    "description": deck_config.get("description", "No description available")
+                    "description": deck_config.get(
+                        "description", "No description available"
+                    )
                 })
             except Exception:
                 # Skip invalid deck files
@@ -112,10 +115,11 @@ class DeckLoader:
 
 @dataclass
 class Card:
-    """Represents a single tarot card with metadata and keywords.
-
-    Stores classification (major/minor), suit, value, and interpretation keywords.
-    Supports upright and reversed positions. Reversal state set during reading."""
+    """Represents a single tarot card with metadata and keywords. Stores
+        classification (major/minor), suit, value, and interpretation
+        keywords. Supports upright and reversed positions. Reversal state
+        set during reading.
+    """
     name: str
     card_type: str  # 'major' or 'minor'
     suit: str|None  # W, C, S, P or None for major arcana
@@ -161,17 +165,17 @@ class DeterministicRNG:
 
 
 class Deck:
-    """Tarot deck with card loading and shuffling functionality.
-
-    Creates standard 78-card deck or loads custom JSON configurations.
-    Provides deterministic shuffling with optional reversed card assignment."""
+    """Tarot deck with card loading and shuffling functionality. Loads
+        standard 78-card deck or custom JSON configurations. Provides
+        deterministic shuffling with optional reversed card assignment.
+    """
 
     @staticmethod
     def load_deck_by_name(deck_name: str) -> dict[str, Any]:
-        """Load deck configuration by name from bundled data or user files.
-
-        Searches bundled decks first, then user config directory.
-        Returns deck config dict or raises ValueError if not found.
+        """Load deck configuration by name from bundled data or user
+            files. Searches bundled decks first, then user config
+            directory. Returns deck config dict or raises ValueError if
+            not found.
         """
         safe_name = sanitize_filename(deck_name)
         if safe_name is None:
@@ -198,7 +202,10 @@ class Deck:
         error_msg += f"  {conf.path('decks')}/{safe_name}.json"
         raise ValueError(error_msg)
 
-    def __init__(self, deck_path: str | None = None, deck_config: dict[str, Any] | None = None) -> None:
+    def __init__(
+            self, deck_path: str | None = None,
+            deck_config: dict[str, Any] | None = None
+        ) -> None:
         self.cards = []
         self.shuffled = []
 
@@ -218,15 +225,15 @@ class Deck:
     def _load_deck_from_config(deck_config: dict[str, Any]) -> list[Card]:
         """Load deck from configuration dictionary.
 
-        Supports 'cards' array format where each card has:
-        - name: Card display name
-        - card_type: 'major' or 'minor'
-        - suit: W, C, S, P or null for major arcana
-        - value: Roman numeral for major, letter/number for minor
-        - keywords: Card interpretation keywords
-        - reversed_keywords: Optional reversed meanings
+            Supports 'cards' array format where each card has:
+            - name: Card display name
+            - card_type: 'major' or 'minor'
+            - suit: W, C, S, P or null for major arcana
+            - value: Roman numeral for major, letter/number for minor
+            - keywords: Card interpretation keywords
+            - reversed_keywords: Optional reversed meanings
 
-        Returns list of Card objects or raises ValueError if invalid.
+            Returns list of Card objects or raises ValueError if invalid.
         """
         if 'cards' not in deck_config:
             raise ValueError(f"Deck configuration must include 'cards' field")
@@ -238,7 +245,10 @@ class Deck:
         cards = []
         for i, card_data in enumerate(cards_list):
             if not isinstance(card_data, dict):
-                print(f"Warning: Skipped card at index {i} - expected dict, got {type(card_data).__name__}", file=stderr)
+                print(
+                    f"Warning: Skipped card at index {i} - expected dict, "
+                    f"got {type(card_data).__name__}", file=stderr
+                )
                 continue
 
             name = cast(str, card_data.get('name'))
@@ -259,11 +269,18 @@ class Deck:
                 if not keywords:
                     missing.append("'keywords'")
                 card_label = name if name else f"index {i}"
-                print(f"Warning: Skipped card '{card_label}' - missing required fields: {', '.join(missing)}", file=stderr)
+                print(
+                    f"Warning: Skipped card '{card_label}' - missing required"
+                    f" fields: {', '.join(missing)}", file=stderr
+                )
                 continue
 
             if card_type not in ('major', 'minor'):
-                print(f"Warning: Skipped card '{name}' (index {i}) - invalid card_type '{card_type}', must be 'major' or 'minor'", file=stderr)
+                print(
+                    f"Warning: Skipped card '{name}' (index {i}) - invalid"
+                    f" card_type '{card_type}', must be 'major' or 'minor'",
+                    file=stderr
+                )
                 continue
 
             card = Card(
@@ -281,7 +298,9 @@ class Deck:
 
         return cards
 
-    def shuffle_and_assign_reversals(self, rng: DeterministicRNG, allow_reversed: bool = False) -> None:
+    def shuffle_and_assign_reversals(
+            self, rng: DeterministicRNG, allow_reversed: bool = False
+        ) -> None:
         """Shuffle the deck using Fisher-Yates algorithm and assign reversals."""
         self.shuffled = self.cards.copy()
         n = len(self.shuffled)
@@ -308,10 +327,11 @@ class Deck:
 
 
 class SpreadRenderer:
-    """Renders tarot spreads in terminal ASCII, JSON, and semantic legend formats.
-
-    Supports matrix and linear layouts with position-based formatting and reversal notation.
-    Outputs card notation with keywords for display or programmatic consumption."""
+    """Renders tarot spreads in terminal ASCII, JSON, and semantic legend
+        formats. Supports matrix and linear layouts with position-based
+        formatting and reversal notation. Outputs card notation with
+        keywords for display or programmatic consumption.
+    """
 
     @staticmethod
     def format_card_simple(card: Card) -> str:
@@ -344,7 +364,11 @@ class SpreadRenderer:
                     if position == 0:
                         row_strings.append(" " * 7)  # 7 spaces for empty position
                     else:
-                        row_strings.append(SpreadRenderer.format_card_simple(position_to_card[position]))
+                        row_strings.append(
+                            SpreadRenderer.format_card_simple(
+                                position_to_card[position]
+                            )
+                        )
                 rows.append((" " * 3).join(row_strings))  # 3 spaces between cards
             return "\n\n".join(rows)  # Single blank line between rows
         else:
@@ -361,7 +385,9 @@ class SpreadRenderer:
                 if position == 0:
                     card_strings.append("        ")  # 8 spaces for empty position
                 else:
-                    card_strings.append(SpreadRenderer.format_card_simple(position_to_card[position]))
+                    card_strings.append(
+                        SpreadRenderer.format_card_simple(position_to_card[position])
+                    )
 
             return " ".join(card_strings)  # Single space between cards
 
@@ -387,7 +413,9 @@ class SpreadRenderer:
         return "\n".join(legend_lines)
 
     @staticmethod
-    def render_spread_json(cards: list[Card], spread_layout: list[list[int]]) -> list[list[str]]:
+    def render_spread_json(
+            cards: list[Card], spread_layout: list[list[int]]
+        ) -> list[list[str]]:
         """Render spread as JSON matrix mirroring ASCII format."""
         # Check if this is a matrix layout (more than one row)
         is_matrix = len(spread_layout) > 1
@@ -434,7 +462,9 @@ class SpreadRenderer:
             return [card_strings]  # Return as single row for consistency
 
     @staticmethod
-    def render_legend_json(cards: list[Card], include_keywords: bool = True) -> list[dict[str, Any]]:
+    def render_legend_json(
+            cards: list[Card], include_keywords: bool = True
+        ) -> list[dict[str, Any]]:
         """Render legend as structured list of card dictionaries."""
         if not cards:
             return []
@@ -461,21 +491,28 @@ class SpreadRenderer:
         return legend_data
 
     @staticmethod
-    def render_json(cards: list[Card], spread_layout: list[list[int]], include_legend: bool = True) -> dict[str, Any]:
+    def render_json(
+            cards: list[Card], spread_layout: list[list[int]],
+            include_legend: bool = True
+        ) -> dict[str, Any]:
         """Render complete reading as JSON structure."""
         matrix = SpreadRenderer.render_spread_json(cards, spread_layout)
         result: dict[str, Any] = {"spread": matrix}
 
         if include_legend:
-            result["legend"] = SpreadRenderer.render_legend_json(cards, include_keywords=True)
+            result["legend"] = SpreadRenderer.render_legend_json(
+                cards, include_keywords=True
+            )
 
         return result
 
     @staticmethod
-    def render_semantic_legend(cards: list[Card], layout: list[list[int]],
-                               semantics: list[list[str]]|None = None,
-                               semantic_groups: dict[str, str]|None = None,
-                               include_keywords: bool = False) -> str:
+    def render_semantic_legend(
+            cards: list[Card], layout: list[list[int]],
+            semantics: list[list[str]]|None = None,
+            semantic_groups: dict[str, str]|None = None,
+            include_keywords: bool = False
+        ) -> str:
         """Render legend with semantic groupings."""
         adapter = SemanticAdapter(layout, cards, semantics, semantic_groups)
         return adapter.render_semantic_legend(include_keywords)
@@ -508,7 +545,9 @@ class SemanticAdapter:
         self.semantics = self._process_semantics(semantics) if semantics else []
 
     def resolve_variables(self, text: str) -> str:
-        """Replace variable placeholders like ${cap} with semantic_group definitions."""
+        """Replace variable placeholders like ${cap} with semantic_group
+            definitions.
+        """
         for var_name, definition in self.semantic_groups.items():
             placeholder = f"${{{var_name}}}"
             text = text.replace(placeholder, definition)
@@ -634,16 +673,25 @@ class SemanticAdapter:
 
 
 class TarotDivination:
-    """Main orchestrator for tarot divination readings.
+    """Main orchestrator for tarot divination readings. Handles deck
+        management, card drawing with cryptographic seeds, and spread
+        processing. Returns structured output for ASCII display or JSON
+        export with semantic groupings.
+    """
 
-    Handles deck management, card drawing with cryptographic seeds, and spread processing.
-    Returns structured output for ASCII display or JSON export with semantic groupings."""
-
-    def __init__(self, deck_path: str | None = None, deck_config: dict[str, Any] | None = None) -> None:
+    def __init__(
+            self, deck_path: str | None = None,
+            deck_config: dict[str, Any] | None = None
+        ) -> None:
         self.deck = Deck(deck_path=deck_path, deck_config=deck_config)
 
-    def create_seed(self, timestamp: str, question: str, invocation: str|None = None, random_bytes: int = 0) -> int:
-        """Create seed from timestamp, question, optional invocation, and random bytes."""
+    def create_seed(
+            self, timestamp: str, question: str, invocation: str|None = None,
+            random_bytes: int = 0
+        ) -> int:
+        """Create seed from timestamp, question, optional invocation, and
+            random bytes.
+        """
         seed_data = f"{timestamp}{question}"
         if invocation:
             seed_data += f"|{invocation}"  # Use | as separator
@@ -653,8 +701,12 @@ class TarotDivination:
 
         return int.from_bytes(sha256(seed_data.encode()).digest(), 'little')
 
-    def _normalize_spread_layout(self, spread_layout: list[list[int]] | list[int]) -> tuple[list[list[int]], int]:
-        """Normalize spread layout to matrix format and return (layout, card_count)."""
+    def _normalize_spread_layout(
+            self, spread_layout: list[list[int]] | list[int]
+        ) -> tuple[list[list[int]], int]:
+        """Normalize spread layout to matrix format and return (layout,
+            card_count).
+        """
         # Handle both list[int] and list[list[int]] cases
         if not spread_layout:
             normalized_layout: list[list[int]] = []
@@ -671,7 +723,10 @@ class TarotDivination:
         needed_cards = len([pos for row in normalized_layout for pos in row if pos > 0])
         return normalized_layout, needed_cards
 
-    def draw_cards_for_reading(self, seed: int, spread_layout: list[list[int]] | list[int], allow_reversed: bool = False) -> list[Card]:
+    def draw_cards_for_reading(
+            self, seed: int, spread_layout: list[list[int]] | list[int],
+            allow_reversed: bool = False
+        ) -> list[Card]:
         """Draw cards for reading using explicit seed - pure deterministic function."""
         rng = DeterministicRNG(seed)
         self.deck.shuffle_and_assign_reversals(rng, allow_reversed)
@@ -679,8 +734,11 @@ class TarotDivination:
         _, needed_cards = self._normalize_spread_layout(spread_layout)
         return self.deck.draw_cards(needed_cards)
 
-    def perform_reading_json(self, question: str, spread_layout: list[list[int]] | list[int], invocation: str|None = None,
-                            random_bytes: int = 0, allow_reversed: bool = False, include_legend: bool = True) -> dict[str, Any]:
+    def perform_reading_json(
+            self, question: str, spread_layout: list[list[int]] | list[int],
+            invocation: str|None = None, random_bytes: int = 0,
+            allow_reversed: bool = False, include_legend: bool = True
+        ) -> dict[str, Any]:
         """Perform tarot reading and return JSON-serializable data."""
         # Create seed and draw cards (reuse existing logic)
         timestamp = str(int(time()))
@@ -688,7 +746,9 @@ class TarotDivination:
         drawn_cards = self.draw_cards_for_reading(seed, spread_layout, allow_reversed)
 
         # Generate JSON structure
-        json_data = SpreadRenderer.render_json(drawn_cards, spread_layout, include_legend)
+        json_data = SpreadRenderer.render_json(
+            drawn_cards, spread_layout, include_legend
+        )
 
         # Add metadata
         json_data.update({
@@ -702,8 +762,11 @@ class TarotDivination:
 
         return json_data
 
-    def perform_reading(self, question: str, spread_input: str, invocation: str|None = None,
-                        random_bytes: int = 0, allow_reversed: bool = False, show_descriptions: bool = True) -> tuple[str, str]:
+    def perform_reading(
+            self, question: str, spread_input: str, invocation: str|None = None,
+            random_bytes: int = 0, allow_reversed: bool = False,
+            show_descriptions: bool = True
+        ) -> tuple[str, str]:
         """Perform tarot reading with semantic groupings and return tuple of
             (spread_display, legend_display).
         """
@@ -728,11 +791,16 @@ class TarotDivination:
             semantics_matrix = None
 
         # Get semantic_groups from semantic_config
-        semantic_groups = semantic_config.get('semantic_groups') if semantic_config else None
+        semantic_groups = semantic_config.get('semantic_groups') \
+            if semantic_config else None
 
         # Use semantic adapter for legend
-        adapter = SemanticAdapter(normalized_layout, drawn_cards, semantics_matrix, semantic_groups)
-        legend_display = adapter.render_semantic_legend(include_keywords=show_descriptions)
+        adapter = SemanticAdapter(
+            normalized_layout, drawn_cards, semantics_matrix, semantic_groups
+        )
+        legend_display = adapter.render_semantic_legend(
+            include_keywords=show_descriptions
+        )
 
         # Add guidance if available (custom spreads only)
         guidance = adapter.get_guidance(semantic_config) if semantic_config else []
@@ -765,7 +833,11 @@ def resolve_spread(spread_input: str) -> tuple[list[list[int]], dict[str, Any]|N
         layout = ast.literal_eval(spread_input)
         return layout, None
     except (ValueError, SyntaxError):
-        raise ValueError(f"Invalid spread '{spread_input}'. Use aliases: {BundledDataLoader.list_spreads()}, custom spread name, or custom matrix.")
+        raise ValueError(
+            f"Invalid spread '{spread_input}'. Use aliases: "
+            f"{BundledDataLoader.list_spreads()}, custom spread name, or custom"
+            " matrix."
+        )
 
 
 def resolve_card_codes(codes: str) -> list[Card]:
@@ -804,10 +876,16 @@ def resolve_card_codes(codes: str) -> list[Card]:
         if code in card_dict:
             card = card_dict[code]
             # Create a copy and set reversal if needed
-            resolved_card = Card(card.name, card.card_type, card.suit, card.value, card.keywords, card.reversed_keywords, is_reversed)
+            resolved_card = Card(
+                card.name, card.card_type, card.suit, card.value, card.keywords,
+                card.reversed_keywords, is_reversed
+            )
             resolved_cards.append(resolved_card)
         else:
-            raise ValueError(f"Invalid card code: '{code}'. Valid codes include major arcana (I, II, etc.) and minor arcana (W3, CQ, SA, PK, etc.)")
+            raise ValueError(
+                f"Invalid card code: '{code}'. Valid codes include major arcana "
+                " (I, II, etc.) and minor arcana (W3, CQ, SA, PK, etc.)"
+            )
 
     return resolved_cards
 
@@ -819,7 +897,7 @@ def create_parser() -> ArgumentParser:
     parser.add_argument("--lookup", help="Look up card codes (CSV format, e.g., 'I,W3,C_Q,XVII')")
     parser.add_argument("--invocation", help="Custom invocation to influence reading")
     parser.add_argument("--invoke", action="store_true",
-                       help="Use default invocation to influence reading (By the wisdom of Hermes-Thoth and foresight of Prometheus)")
+                       help="Use default invocation to influence reading")
     parser.add_argument("--spread", default="3-card",
                        help=f"Spread layout (default: 3-card). Available: {BundledDataLoader.list_spreads()} or custom matrix")
     parser.add_argument("--random", type=int, default=8,
@@ -847,11 +925,7 @@ def get_invocation_text(args) -> str|None:
     if args.invocation:
         return args.invocation
     elif args.invoke:
-        # Default invocation for --invoke flag
-        return """
-By the wisdom of Hermes-Thoth, guide of souls and keeper of sacred knowledge,
-and by the foresight of Prometheus, bringer of fire and divine insight, I seek
-understanding through the ancient art of tarot."""[1:]
+        return BundledDataLoader.load_invocation("default-hermes-thoth-prometheus")
     else:
         return None
 
@@ -959,7 +1033,10 @@ def main(args=None) -> int:
 
     # Validate that question is provided for reading mode
     if not args.question:
-        print("Error: Question is required for tarot reading. Use --lookup to look up card codes or --list-decks to see available decks.")
+        print(
+            "Error: Question is required for tarot reading. Use --lookup to look"
+            " up card codes or --list-decks to see available decks."
+        )
         return 1
 
     try:
@@ -979,11 +1056,17 @@ def main(args=None) -> int:
 
     if args.json:
         # JSON output path
-        json_data = tarot.perform_reading_json(args.question, spread_layout, invocation, args.random, args.reversed, include_legend=True)
+        json_data = tarot.perform_reading_json(
+            args.question, spread_layout, invocation, args.random, args.reversed,
+            include_legend=True
+        )
         print(json.dumps(json_data, indent=2, ensure_ascii=False))
     else:
         # ASCII output path
-        spread_display, legend_display = tarot.perform_reading(args.question, args.spread, invocation, args.random, args.reversed, not args.no_keywords)
+        spread_display, legend_display = tarot.perform_reading(
+            args.question, args.spread, invocation, args.random, args.reversed,
+            not args.no_keywords
+        )
         print(f"Question: {args.question}")
         if invocation:
             print(f"Reading influenced by divine invocation")

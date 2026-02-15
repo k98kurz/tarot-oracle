@@ -39,11 +39,17 @@ class BundledDataLoader:
         return BundledDataLoader._list_files("data/spreads")
 
     @staticmethod
-    def _list_files(dir_path: str) -> list[str]:
-        """List JSON file stems in a package directory. Returns empty list if directory not found."""
+    def _list_files(dir_path: str, extension: str = ".json") -> list[str]:
+        """List file stems in a package directory. Returns empty list if directory not found."""
         try:
             directory = resources.files("tarot_oracle").joinpath(dir_path)
-            return [f.stem for f in directory.iterdir() if f.suffix == ".json"]
+            result = []
+            for f in directory.iterdir():
+                if f.is_file():
+                    name = str(f.name)
+                    if name.endswith(extension):
+                        result.append(name[:-len(extension)])
+            return result
         except FileNotFoundError:
             return []
 
@@ -64,5 +70,30 @@ class BundledDataLoader:
         try:
             with resources.files("tarot_oracle").joinpath(resource_path).open("r", encoding="utf-8") as f:
                 return f.read()
+        except FileNotFoundError:
+            return None
+
+    @staticmethod
+    def load_invocation(name: str) -> str | None:
+        """Load bundled invocation by name. Returns text or None if not found."""
+        resource_path = f"data/invocations/{name}.txt"
+        try:
+            with resources.files("tarot_oracle").joinpath(resource_path).open("r", encoding="utf-8") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return None
+
+    @staticmethod
+    def list_invocations() -> list[str]:
+        """List all bundled invocation names. Returns list without .txt extension."""
+        return BundledDataLoader._list_files("data/invocations", ".txt")
+
+    @staticmethod
+    def export_invocation(name: str) -> str | None:
+        """Export bundled invocation as string. Returns None if invocation not found."""
+        resource_path = f"data/invocations/{name}.txt"
+        try:
+            with resources.files("tarot_oracle").joinpath(resource_path).open("r", encoding="utf-8") as f:
+                return f.read().strip()
         except FileNotFoundError:
             return None

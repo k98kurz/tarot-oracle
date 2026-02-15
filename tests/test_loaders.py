@@ -11,6 +11,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 class TestLoaders(unittest.TestCase):
+    def test_bundled_invocation_loader(self):
+        """Test BundledDataLoader invocation loading."""
+        from tarot_oracle.data_loader import BundledDataLoader
+
+        # Load default invocation
+        default_invocation = BundledDataLoader.load_invocation("default-hermes-thoth-prometheus")
+        assert default_invocation is not None, "Default invocation should be loaded"
+        assert "Hermes-Thoth" in default_invocation
+        assert "Prometheus" in default_invocation
+
+        # List invocations
+        invocations = BundledDataLoader.list_invocations()
+        assert isinstance(invocations, list), "Should return a list"
+        assert "default-hermes-thoth-prometheus" in invocations
+
+        # Export invocation
+        exported = BundledDataLoader.export_invocation("default-hermes-thoth-prometheus")
+        assert exported == default_invocation
+
     def test_invocation_loader_basic(self):
         """Test InvocationLoader basic functionality with local files."""
         # Create temporary directory for testing

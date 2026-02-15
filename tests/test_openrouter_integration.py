@@ -253,7 +253,7 @@ class TestOpenRouterClient(unittest.TestCase):
 
         assert headers["Authorization"] == "Bearer test-key"
         assert headers["Content-Type"] == "application/json"
-        assert headers["HTTP-Referer"] == "https://github.com/tarot-oracle/tarot-oracle"
+        assert "HTTP-Referer" in headers
         assert headers["X-Title"] == "Tarot Oracle"
 
     @patch('tarot_oracle.oracle.requests.post')

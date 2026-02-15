@@ -31,3 +31,6 @@ def ensure_config_directories() -> None:
     for subdir in ["decks", "invocations", "spreads"]:
         Path(conf.path(subdir)).mkdir(parents=True, exist_ok=True)
 
+def lstrip_lines(text: str) -> str:
+    return "\n".join([l.lstrip() for l in text.split("\n")])
+
