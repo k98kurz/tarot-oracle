@@ -13,6 +13,7 @@ from .helpers import (
     config, sanitize_filename, validate_path_security, ensure_config_directories
 )
 from .loaders import SpreadLoader, InvocationLoader
+from .version import version
 
 import ast
 import json
@@ -932,6 +933,9 @@ def resolve_card_codes(codes: str) -> list[Card]:
 def create_parser() -> ArgumentParser:
     """Create command line argument parser."""
     parser = ArgumentParser(description="Tarot divination script")
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {version()}'
+    )
     parser.add_argument(
         "question", nargs='?',
         help="Question for tarot reading (ignored with --lookup, --list-decks, "

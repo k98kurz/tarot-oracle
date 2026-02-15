@@ -16,6 +16,7 @@ from tarot_oracle.data_loader import BundledDataLoader
 from tarot_oracle.helpers import config, ensure_config_directories, lstrip_lines, validate_path_security
 from tarot_oracle.loaders import InvocationLoader
 from tarot_oracle.tarot import Card, SpreadRenderer, TarotDivination
+from tarot_oracle.version import version
 
 try:
     from google import genai
@@ -604,8 +605,7 @@ class Oracle:
             response = self.client.generate_response(prompt, model, timeout)
             return response
         except Exception as e:
-            # For debugging - we can remove this later
-            print(f"DEBUG: Error getting interpretation: {e}", file=sys.stderr)
+            print(f"Error getting interpretation: {e}", file=sys.stderr)
             return None
 
     def perform_divinatory_reading(
@@ -667,11 +667,14 @@ def create_oracle_parser() -> ArgumentParser:
         session management.
     """
     parser = ArgumentParser(description="Divinatory oracle with LLM interpretation")
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {version()}'
+    )
 
     # Core question and spread
     parser.add_argument(
         "question", nargs='?',
-        help="Question for the oracle (not required for config commands)"
+        help="Question for oracle (not required for config commands)"
     )
     parser.add_argument(
         "--spread", default="3-card",

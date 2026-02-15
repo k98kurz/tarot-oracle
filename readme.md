@@ -524,6 +524,8 @@ To test, clone the repo, install dependencies, and run:
 python -m unittest discover -s tests
 ```
 
+There are currently 109 unit tests.
+
 ## Devlog Note
 
 This project was my first project with OpenCode, intended mostly as an opportunity
