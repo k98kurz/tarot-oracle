@@ -303,7 +303,7 @@ class TestOracleCLI(unittest.TestCase):
         parser = oracle.create_oracle_parser()
 
         args = parser.parse_args(['test'])
-        assert args.provider == 'gemini'
+        assert args.provider == 'ollama'
         assert args.interpret is False
 
         args = parser.parse_args(['--provider', 'openrouter', 'test'])
@@ -415,7 +415,7 @@ class TestOracleCLI(unittest.TestCase):
 
         test_cases = [
             ('openrouter', 'check_api_key', False, 'API key validation failed'),
-            ('ollama', 'check_model_available', False, "Model 'mistral' not found in Ollama"),
+            ('ollama', 'check_model_available', False, f"Model '{oracle.ORACLE_CONFIG_DEFAULTS['ollama_model']}' not found in Ollama"),
         ]
 
         for provider, check_method, check_result, expected_message in test_cases:
@@ -496,6 +496,237 @@ class TestOracleCLI(unittest.TestCase):
                 assert result == 0
                 assert '=== Invocation ===' in output
                 mock_save.assert_called_once()
+
+    def test_oracle_config_display(self):
+        """Test --config displays all 6 configuration keys."""
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            result = oracle.main(['--config'])
+            output = mock_stdout.getvalue()
+
+            assert result == 0
+            assert 'Oracle Configuration:' in output
+            assert 'autosave_location' in output
+            assert 'autosave_sessions' in output
+            assert 'google_ai_api_key' in output
+            assert 'ollama_host' in output
+            assert 'openrouter_api_key' in output
+            assert 'provider' in output
+
+    def test_oracle_set_config_string_key(self):
+        """Test --set-config with valid string keys."""
+        with patch('tarot_oracle.oracle.config') as mock_config:
+            mock_config.return_value.get.return_value = None
+            mock_config.return_value.list.return_value = []
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--set-config', 'provider', 'ollama'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+                assert 'Configuration set: provider = ollama' in output
+                mock_config.return_value.set.assert_called_once_with('provider', 'ollama')
+                mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_set_config_boolean_true(self):
+        """Test --set-config with boolean true values for autosave_sessions."""
+        test_values = ['true', '1', 'yes']
+
+        for value in test_values:
+            with self.subTest(value=value):
+                with patch('tarot_oracle.oracle.config') as mock_config:
+                    mock_config.return_value.get.return_value = None
+                    mock_config.return_value.list.return_value = []
+
+                    with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                        result = oracle.main(['--set-config', 'autosave_sessions', value])
+                        output = mock_stdout.getvalue()
+
+                        assert result == 0
+                        assert 'Configuration set: autosave_sessions' in output
+                        mock_config.return_value.set.assert_called_once_with('autosave_sessions', True)
+                        mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_set_config_boolean_false(self):
+        """Test --set-config with boolean false values for autosave_sessions."""
+        test_values = ['false', '0', 'no']
+
+        for value in test_values:
+            with self.subTest(value=value):
+                with patch('tarot_oracle.oracle.config') as mock_config:
+                    mock_config.return_value.get.return_value = None
+                    mock_config.return_value.list.return_value = []
+
+                    with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                        result = oracle.main(['--set-config', 'autosave_sessions', value])
+                        output = mock_stdout.getvalue()
+
+                        assert result == 0
+                        assert 'Configuration set: autosave_sessions' in output
+                        mock_config.return_value.set.assert_called_once_with('autosave_sessions', False)
+                        mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_set_config_invalid_key(self):
+        """Test --set-config rejects invalid keys."""
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            result = oracle.main(['--set-config', 'invalid_key', 'value'])
+            output = mock_stdout.getvalue()
+
+            assert result == 1
+            assert 'Error: Invalid configuration key' in output
+            assert 'Valid keys:' in output
+
+    def test_oracle_set_config_invalid_boolean(self):
+        """Test --set-config rejects invalid boolean values for autosave_sessions."""
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            result = oracle.main(['--set-config', 'autosave_sessions', 'maybe'])
+            output = mock_stdout.getvalue()
+
+            assert result == 1
+            assert 'Error: Invalid value' in output
+            assert 'Use: true, false, 1, 0, yes, no' in output
+
+    def test_oracle_unset_config_valid_key(self):
+        """Test --unset-config removes valid keys."""
+        with patch('tarot_oracle.oracle.config') as mock_config:
+            mock_config.return_value.get.return_value = 'some_value'
+            mock_config.return_value.list.return_value = ['provider']
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--unset-config', 'provider'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+                assert 'Configuration unset: provider' in output
+                mock_config.return_value.unset.assert_called_once_with('provider')
+                mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_unset_config_invalid_key(self):
+        """Test --unset-config rejects invalid keys."""
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            result = oracle.main(['--unset-config', 'invalid_key'])
+            output = mock_stdout.getvalue()
+
+            assert result == 1
+            assert 'Error: Invalid configuration key' in output
+            assert 'Valid keys:' in output
+
+    def test_oracle_config_display_with_defaults(self):
+        """Test --config displays default values for unset keys."""
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            result = oracle.main(['--config'])
+            output = mock_stdout.getvalue()
+
+            assert result == 0
+            assert 'Oracle Configuration:' in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['provider']})" in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['ollama_model']})" in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['gemini_model']})" in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['openrouter_model']})" in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['ollama_host']})" in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['autosave_sessions']})" in output
+            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['autosave_location']})" in output
+
+    def test_oracle_set_config_provider_valid(self):
+        """Test --set-config with valid provider values."""
+        valid_providers = ['gemini', 'openrouter', 'ollama']
+
+        for provider in valid_providers:
+            with self.subTest(provider=provider):
+                with patch('tarot_oracle.oracle.config') as mock_config:
+                    mock_config.return_value.get.return_value = None
+                    mock_config.return_value.list.return_value = []
+
+                    with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                        result = oracle.main(['--set-config', 'provider', provider])
+                        output = mock_stdout.getvalue()
+
+                        assert result == 0
+                        assert 'Configuration set: provider' in output
+                        mock_config.return_value.set.assert_called_once_with('provider', provider)
+                        mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_set_config_provider_invalid(self):
+        """Test --set-config rejects invalid provider values."""
+        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+            result = oracle.main(['--set-config', 'provider', 'invalid_provider'])
+            output = mock_stdout.getvalue()
+
+            assert result == 1
+            assert 'Error: Invalid provider' in output
+            assert 'Valid providers: gemini, openrouter, ollama' in output
+
+    def test_oracle_set_config_gemini_model(self):
+        """Test --set-config with gemini_model."""
+        with patch('tarot_oracle.oracle.config') as mock_config:
+            mock_config.return_value.get.return_value = None
+            mock_config.return_value.list.return_value = []
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--set-config', 'gemini_model', 'gemini-pro'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+                assert 'Configuration set: gemini_model = gemini-pro' in output
+                mock_config.return_value.set.assert_called_once_with('gemini_model', 'gemini-pro')
+                mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_set_config_openrouter_model(self):
+        """Test --set-config with openrouter_model."""
+        with patch('tarot_oracle.oracle.config') as mock_config:
+            mock_config.return_value.get.return_value = None
+            mock_config.return_value.list.return_value = []
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--set-config', 'openrouter_model', 'gpt-4'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+                assert 'Configuration set: openrouter_model = gpt-4' in output
+                mock_config.return_value.set.assert_called_once_with('openrouter_model', 'gpt-4')
+                mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_set_config_ollama_model(self):
+        """Test --set-config with ollama_model."""
+        with patch('tarot_oracle.oracle.config') as mock_config:
+            mock_config.return_value.get.return_value = None
+            mock_config.return_value.list.return_value = []
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--set-config', 'ollama_model', 'llama2'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+                assert 'Configuration set: ollama_model = llama2' in output
+                mock_config.return_value.set.assert_called_once_with('ollama_model', 'llama2')
+                mock_config.return_value.save.assert_called_once()
+
+    def test_oracle_config_uses_model_defaults(self):
+        """Test Oracle uses config model defaults when --model not provided."""
+        config_values = {
+            'provider': 'ollama',
+            'ollama_model': 'custom-llama',
+            'ollama_host': 'localhost:11434'
+        }
+
+        with patch('tarot_oracle.oracle.OllamaClient') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
+
+            with patch('tarot_oracle.oracle.config') as mock_config_func:
+                mock_config = MagicMock()
+                mock_config.get.side_effect = lambda key, default=None: config_values.get(key, default)
+                mock_config.list.return_value = ['provider', 'ollama_model']
+                mock_config_func.return_value = mock_config
+
+                self.oracle_patcher.stop()
+                try:
+                    oracle_instance = oracle.Oracle()
+
+                    assert oracle_instance.default_model == 'custom-llama'
+
+                    mock_config.get.assert_any_call('ollama_model', oracle.ORACLE_CONFIG_DEFAULTS['ollama_model'])
+                finally:
+                    self.oracle_patcher.start()
 
 
 if __name__ == "__main__":

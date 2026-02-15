@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tarot_oracle.oracle import OpenRouterClient
+from tarot_oracle.oracle import OpenRouterClient, ORACLE_CONFIG_DEFAULTS
 # Custom exceptions removed - using standard TypeError and ValueError instead
 
 
@@ -20,7 +20,7 @@ class TestOpenRouterClient(unittest.TestCase):
     def test_client_initialization(self):
         """Test basic client initialization."""
         api_key = "test-api-key"
-        model = "z-ai/glm-4.5-air:free"
+        model = ORACLE_CONFIG_DEFAULTS["openrouter_model"]
 
         client = OpenRouterClient(api_key=api_key, model=model)
 
@@ -35,7 +35,7 @@ class TestOpenRouterClient(unittest.TestCase):
         client = OpenRouterClient(api_key=api_key)
 
         assert client.api_key == api_key
-        assert client.model == "z-ai/glm-4.5-air:free"
+        assert client.model == ORACLE_CONFIG_DEFAULTS["openrouter_model"]
 
     @patch('tarot_oracle.oracle.requests.post')
     def test_successful_response(self, mock_post):
@@ -64,7 +64,7 @@ class TestOpenRouterClient(unittest.TestCase):
         call_args = mock_post.call_args
         assert "Authorization" in call_args[1]["headers"]
         assert call_args[1]["headers"]["Authorization"] == "Bearer test-key"
-        assert call_args[1]["json"]["model"] == "z-ai/glm-4.5-air:free"
+        assert call_args[1]["json"]["model"] == ORACLE_CONFIG_DEFAULTS["openrouter_model"]
         assert call_args[1]["json"]["messages"][0]["content"] == "Interpret these cards: Ace of Cups"
 
     @patch('tarot_oracle.oracle.requests.post')

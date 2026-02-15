@@ -51,17 +51,17 @@ class DeckLoader:
         """Load and validate JSON deck configuration."""
         try:
             with open(path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
+                deck_config = json.load(f)
 
             # Basic validation
-            if not isinstance(config, dict):
+            if not isinstance(deck_config, dict):
                 raise ValueError(f"Deck configuration must be a JSON object: {path}")
 
             # Validate required top-level fields
-            if 'name' not in config:
+            if 'name' not in deck_config:
                 raise ValueError(f"Deck configuration must include 'name' field: {path}")
 
-            return config
+            return deck_config
 
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in deck file: {e} (file: {path})")

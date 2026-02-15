@@ -2,8 +2,9 @@
 
 """Oracle system for AI-powered tarot divination readings.
 
-Combines traditional tarot with LLM interpretation via Gemini, OpenRouter, or Ollama.
-Supports custom invocations, spreads, session saving, and both CLI and programmatic interfaces."""
+Combines traditional tarot with LLM interpretation via Gemini,
+OpenRouter, or Ollama. Supports custom invocations, spreads, session
+saving, and both CLI and programmatic interfaces."""
 
 from argparse import ArgumentParser
 from datetime import datetime
@@ -24,7 +25,6 @@ from tarot_oracle.tarot import (
     Card,
     SpreadRenderer,
     TarotDivination,
-    resolve_spread,
 )
 
 try:
@@ -39,6 +39,31 @@ import requests
 import sys
 
 # Custom exceptions removed - using standard TypeError and ValueError instead
+
+
+ORACLE_CONFIG_KEYS = {
+    "provider",
+    "google_ai_api_key",
+    "openrouter_api_key",
+    "ollama_host",
+    "autosave_sessions",
+    "autosave_location",
+    "gemini_model",
+    "openrouter_model",
+    "ollama_model"
+}
+
+ORACLE_CONFIG_DEFAULTS = {
+    "provider": "ollama",
+    "google_ai_api_key": None,
+    "openrouter_api_key": None,
+    "ollama_host": "localhost:11434",
+    "autosave_sessions": "true",
+    "autosave_location": "~/oracles",
+    "gemini_model": "gemini-3-flash",
+    "openrouter_model": "z-ai/glm-4.5-air:free",
+    "ollama_model": "qwen3:0.6b"
+}
 
 
 class InvocationManager:
@@ -95,7 +120,7 @@ class GeminiClient:
     Requires google-genai package and API key. Generates tarot interpretations via Gemini models.
     Raises ImportError if google-genai package is not installed."""
 
-    def __init__(self, api_key: str, model: str = "gemini-3-flash"):
+    def __init__(self, api_key: str, model: str = ORACLE_CONFIG_DEFAULTS["gemini_model"]):
         """Initialize Gemini client with API key and model.
 
         Raises ImportError if google-genai package is not installed."""
@@ -140,7 +165,7 @@ class OpenRouterClient:
     Uses OpenAI-compatible API for multiple models through unified interface.
     Supports configurable base URL and model selection."""
 
-    def __init__(self, api_key: str, model: str = "z-ai/glm-4.5-air:free"):
+    def __init__(self, api_key: str, model: str = ORACLE_CONFIG_DEFAULTS["openrouter_model"]):
         """Initialize OpenRouter client with API key and model."""
         self.api_key = api_key
         self.model = model
@@ -217,11 +242,11 @@ class OllamaClient:
 
     Connects to locally-hosted models for private readings. Default host: localhost:11434."""
 
-    def __init__(self, host: str = "localhost:11434"):
+    def __init__(self, host: str = ORACLE_CONFIG_DEFAULTS["ollama_host"]):
         """Initialize Ollama client with server host."""
         self.host = host
 
-    def generate_response(self, prompt: str, model: str = "mistral", timeout: int = 300) -> str | None:
+    def generate_response(self, prompt: str, model: str = ORACLE_CONFIG_DEFAULTS["ollama_model"], timeout: int = 300) -> str | None:
         """Call Ollama generate endpoint with prompt. Returns stripped response text or None on error."""
         url = f"http://{self.host}/api/generate"
 
@@ -365,7 +390,7 @@ class Oracle:
         conf = config()
 
         # Provider selection
-        self.provider = provider or conf.get("provider", os.getenv("ORACLE_PROVIDER", "gemini"))
+        self.provider = provider or conf.get("provider", os.getenv("ORACLE_PROVIDER", ORACLE_CONFIG_DEFAULTS["provider"]))
 
         if self.provider == "gemini":
             api_key = api_key or conf.get("google_ai_api_key", os.getenv("GOOGLE_AI_API_KEY"))
@@ -373,20 +398,23 @@ class Oracle:
                 raise ValueError("GOOGLE_AI_API_KEY environment variable must be set for Gemini provider")
             if genai is None:
                 raise ImportError("google-genai package not installed. Install with: pip install google-genai")
-            self.client = GeminiClient(str(api_key), model or "gemini-3-flash")
-            self.default_model = model or "gemini-3-flash"
+            model_to_use = model or conf.get("gemini_model", ORACLE_CONFIG_DEFAULTS["gemini_model"])
+            self.client = GeminiClient(str(api_key), model_to_use)
+            self.default_model = model_to_use
 
         elif self.provider == "openrouter":
             api_key = api_key or conf.get("openrouter_api_key", os.getenv("OPENROUTER_API_KEY"))
             if not api_key:
                 raise ValueError("OPENROUTER_API_KEY environment variable must be set for OpenRouter provider")
-            self.client = OpenRouterClient(str(api_key), model or "z-ai/glm-4.5-air:free")
-            self.default_model = model or "z-ai/glm-4.5-air:free"
+            model_to_use = model or conf.get("openrouter_model", ORACLE_CONFIG_DEFAULTS["openrouter_model"])
+            self.client = OpenRouterClient(str(api_key), model_to_use)
+            self.default_model = model_to_use
 
         elif self.provider == "ollama":
-            host = ollama_host or conf.get("ollama_host", os.getenv("OLLAMA_HOST", "localhost:11434"))
+            host = ollama_host or conf.get("ollama_host", os.getenv("OLLAMA_HOST", ORACLE_CONFIG_DEFAULTS["ollama_host"]))
             self.client = OllamaClient(str(host))
-            self.default_model = model or "mistral"
+            model_to_use = model or conf.get("ollama_model", ORACLE_CONFIG_DEFAULTS["ollama_model"])
+            self.default_model = model_to_use
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
@@ -467,21 +495,14 @@ Pay special attention to the positional meanings and how they affect each card's
         else:
             invocation = self.invocation_manager.get_hermes_thoth_prometheus_invocation()
 
-        # Generate tarot reading using existing system
-        try:
-            spread_layout = resolve_spread(spread_type)
-        except ValueError as e:
-            return {"error": str(e)}
-
         # Use direct method calls instead of JSON
         spread_display, legend_display = self.tarot.perform_reading(
             question=question,
-            spread_layout=spread_layout,
+            spread_input=spread_type,
             invocation=invocation,
             random_bytes=kwargs.get('random_bytes', 8),
             allow_reversed=kwargs.get('allow_reversed', False),
-            show_descriptions=kwargs.get('show_descriptions', True),
-            spread_type=spread_type
+            show_descriptions=kwargs.get('show_descriptions', True)
         )
 
         # Get interpretation if requested
@@ -508,13 +529,13 @@ def create_oracle_parser() -> ArgumentParser:
     parser = ArgumentParser(description="Divinatory oracle with LLM interpretation")
 
     # Core question and spread
-    parser.add_argument("question", help="Question for the oracle")
+    parser.add_argument("question", nargs='?', help="Question for the oracle (not required for config commands)")
     parser.add_argument("--spread", default="3-card",
                        help=f"Spread layout (default: 3-card). Available: {BundledDataLoader.list_spreads()} or custom matrix")
 
     # Oracle-specific features
     parser.add_argument("--provider", choices=["gemini", "openrouter", "ollama"],
-                       default="gemini", help="LLM provider (default: gemini)")
+                       default=ORACLE_CONFIG_DEFAULTS["provider"], help="LLM provider (default: ollama)")
     parser.add_argument("--invocation",
                        help="Custom invocation text (defaults to Hermes-Thoth/Prometheus if not provided)")
     parser.add_argument("--interpret", action="store_true",
@@ -540,6 +561,14 @@ def create_oracle_parser() -> ArgumentParser:
                        help="Add N random bytes to RNG seed for entropy (default: 8)")
     parser.add_argument("--reversed", action="store_true",
                        help="Allow cards to appear reversed")
+
+    # Configuration management
+    parser.add_argument("--config", action="store_true",
+                       help="Display current configuration")
+    parser.add_argument("--set-config", nargs=2, metavar=("KEY", "VALUE"),
+                       help="Set configuration key=value and save")
+    parser.add_argument("--unset-config", metavar="KEY",
+                       help="Remove configuration key and save")
 
     return parser
 
@@ -571,6 +600,70 @@ def print_interpretation(interpretation: str | None) -> None:
         print("Interpretation was not available.")
 
 
+def handle_config_commands(show_config: bool, set_config: list[str] | None, unset_config: str | None) -> int:
+    """Handle configuration management commands. Returns 0 on success, 1 on error."""
+    conf = config()
+
+    if show_config:
+        print("Oracle Configuration:")
+        for key in sorted(ORACLE_CONFIG_KEYS):
+            value = conf.get(key)
+            default = ORACLE_CONFIG_DEFAULTS.get(key)
+
+            if value is None:
+                if default is None:
+                    provider_name = key.split("_")[0] if "_api_key" in key else None
+                    if provider_name:
+                        print(f"  {key}: (not set - required when using {provider_name})")
+                    else:
+                        print(f"  {key}: (not set)")
+                else:
+                    print(f"  {key}: (default: {default})")
+            else:
+                print(f"  {key}: {value}")
+        return 0
+
+    if set_config:
+        key, value = set_config[0], set_config[1]
+        if key not in ORACLE_CONFIG_KEYS:
+            print(f"Error: Invalid configuration key '{key}'. Valid keys: {', '.join(sorted(ORACLE_CONFIG_KEYS))}")
+            return 1
+
+        if key == "provider":
+            valid_providers = ["gemini", "openrouter", "ollama"]
+            if value not in valid_providers:
+                print(f"Error: Invalid provider '{value}'. Valid providers: {', '.join(valid_providers)}")
+                return 1
+
+        if key == "autosave_sessions":
+            lower_value = value.lower()
+            if lower_value in ("true", "1", "yes"):
+                conf.set(key, True)
+            elif lower_value in ("false", "0", "no"):
+                conf.set(key, False)
+            else:
+                print(f"Error: Invalid value '{value}' for '{key}'. Use: true, false, 1, 0, yes, no")
+                return 1
+        else:
+            conf.set(key, value)
+
+        conf.save()
+        print(f"Configuration set: {key} = {value}")
+        return 0
+
+    if unset_config:
+        if unset_config not in ORACLE_CONFIG_KEYS:
+            print(f"Error: Invalid configuration key '{unset_config}'. Valid keys: {', '.join(sorted(ORACLE_CONFIG_KEYS))}")
+            return 1
+
+        conf.unset(unset_config)
+        conf.save()
+        print(f"Configuration unset: {unset_config}")
+        return 0
+
+    return 0
+
+
 def main(args=None) -> int:
     """Oracle CLI entry point. Parses arguments, runs reading, displays results, optionally saves session.
 
@@ -583,6 +676,15 @@ def main(args=None) -> int:
         args = parser.parse_args(args)
 
     ensure_config_directories()
+
+    # Handle configuration management commands
+    if args.config or args.set_config or args.unset_config:
+        return handle_config_commands(args.config, args.set_config, args.unset_config)
+
+    # Validate that question is provided for reading mode
+    if not args.question:
+        print("Error: Question is required for oracle reading. Use --config to manage configuration.")
+        return 1
 
     # Create oracle instance with provider-specific options
     oracle = Oracle(
@@ -609,9 +711,9 @@ def main(args=None) -> int:
             if hasattr(client, 'check_model_available'):
                 # Type assertion: we know this method exists due to hasattr check
                 ollama_client = cast(OllamaClient, client)
-                model_available = ollama_client.check_model_available(args.model or "mistral")
+                model_available = ollama_client.check_model_available(args.model or ORACLE_CONFIG_DEFAULTS["ollama_model"])
                 if not model_available:
-                    print(f"Warning: Model '{args.model or 'mistral'}' not found in Ollama. Interpretation may not be available.")
+                    print(f"Warning: Model '{args.model or ORACLE_CONFIG_DEFAULTS['ollama_model']}' not found in Ollama. Interpretation may not be available.")
 
     # Perform the reading
     result = oracle.perform_divinatory_reading(
@@ -640,9 +742,9 @@ def main(args=None) -> int:
 
     # Determine save behavior
     conf = config()
-    autosave = conf.get("autosave_sessions", os.getenv("TAROT_ORACLE_AUTOSAVE", "true"))
+    autosave = conf.get("autosave_sessions", os.getenv("TAROT_ORACLE_AUTOSAVE", ORACLE_CONFIG_DEFAULTS["autosave_sessions"]))
     should_save = autosave if isinstance(autosave, bool) else str(autosave).lower() in ["true", "1", "yes"]
-    save_location = conf.get("autosave_location", os.getenv("TAROT_ORACLE_AUTOSAVE_LOCATION", str(Path.home() / "oracles")))
+    save_location = conf.get("autosave_location", os.getenv("TAROT_ORACLE_AUTOSAVE_LOCATION", os.path.expanduser(ORACLE_CONFIG_DEFAULTS["autosave_location"])))
 
     if args.save:
         should_save = True

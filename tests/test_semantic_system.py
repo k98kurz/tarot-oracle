@@ -20,13 +20,13 @@ class TestSemanticAdapter(unittest.TestCase):
         from tarot_oracle.tarot import SemanticAdapter, Card
 
         text = "This is ${fire} and ${water} working with ${spirit}"
-        
+
         semantic_groups = {
             'fire': 'Karmic Forces/Cosmic Influences (Fire)',
             'water': 'Emotional Basis/Subconscious Influences (Water)',
             'spirit': 'Nature of Circumstances/Divine Will (Spirit)'
         }
-        
+
         adapter = SemanticAdapter([[1, 2]], [Card('Test', 'major', None, '0', 'Test')], None, semantic_groups)
         resolved = adapter.resolve_variables(text)
 
@@ -69,7 +69,7 @@ class TestSemanticAdapter(unittest.TestCase):
         assert len(guidance) == 2
         assert any('Fire transformation' in g for g in guidance)
 
- 
+
 class TestSpreadLoaderEnhancements(unittest.TestCase):
     """Test enhanced SpreadLoader with semantic features."""
 
