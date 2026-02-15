@@ -1,5 +1,8 @@
 """Test CLI entry points for tarot and oracle commands."""
 
+import json
+import os
+import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -273,6 +276,119 @@ class TestTarotCLI(unittest.TestCase):
                 assert 'Spread:' in output
                 mock_resolve.assert_called_once_with(custom_matrix)
 
+    def test_tarot_parser_has_save_deck_flag(self):
+        """Verify parser recognizes --save-deck flag."""
+        parser = tarot.create_parser()
+
+        args = parser.parse_args(['--save-deck', 'test-deck.json'])
+        assert args.save_deck == 'test-deck.json'
+
+    def test_tarot_parser_has_save_spread_flag(self):
+        """Verify parser recognizes --save-spread flag."""
+        parser = tarot.create_parser()
+
+        args = parser.parse_args(['--save-spread', 'test-spread.json'])
+        assert args.save_spread == 'test-spread.json'
+
+    def test_tarot_save_deck_success(self):
+        """Test --save-deck successfully saves deck to config."""
+        test_deck_config = {
+            "name": "Test Deck",
+            "description": "A test deck",
+            "cards": []
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = os.getcwd()
+
+            try:
+                os.chdir(temp_dir)
+                deck_file = Path("test-deck.json")
+                deck_file.write_text(
+                    json.dumps(test_deck_config, indent=2)
+                )
+
+                with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                    with patch('tarot_oracle.tarot.DeckLoader') as mock_loader:
+                        mock_loader.return_value = MagicMock()
+
+                        result = tarot.main(['--save-deck', 'test-deck.json'])
+                        output = mock_stdout.getvalue()
+
+                        assert result == 0
+                        assert 'Deck saved to:' in output
+            finally:
+                os.chdir(original_cwd)
+
+    def test_tarot_save_spread_success(self):
+        """Test --save-spread successfully saves spread to config."""
+        test_spread_config = {
+            "name": "Test Spread",
+            "description": "A test spread",
+            "layout": [[0], [1], [2]]
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = os.getcwd()
+
+            try:
+                os.chdir(temp_dir)
+                spread_file = Path("test-spread.json")
+                spread_file.write_text(
+                    json.dumps(test_spread_config, indent=2)
+                )
+
+                with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                    with patch('tarot_oracle.tarot.SpreadLoader') as mock_loader:
+                        mock_loader.return_value = MagicMock()
+
+                        result = tarot.main(['--save-spread', 'test-spread.json'])
+                        output = mock_stdout.getvalue()
+
+                        assert result == 0
+                        assert 'Spread saved to:' in output
+            finally:
+                os.chdir(original_cwd)
+
+    def test_tarot_save_deck_not_found(self):
+        """Test --save-deck returns 1 for non-existent file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = os.getcwd()
+
+            try:
+                os.chdir(temp_dir)
+
+                with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                    with patch.object(tarot, 'stderr', new_callable=StringIO) as mock_stderr:
+                        result = tarot.main(['--save-deck', 'non-existent.json'])
+                        output = mock_stdout.getvalue()
+                        error_output = mock_stderr.getvalue()
+
+                        assert result == 1
+                        assert 'Error: Source file not found' in error_output
+            finally:
+                os.chdir(original_cwd)
+
+    def test_tarot_save_spread_invalid_json(self):
+        """Test --save-spread returns 1 for invalid JSON."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = os.getcwd()
+
+            try:
+                os.chdir(temp_dir)
+                spread_file = Path("invalid.json")
+                spread_file.write_text("not valid json")
+
+                with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                    with patch.object(tarot, 'stderr', new_callable=StringIO) as mock_stderr:
+                        result = tarot.main(['--save-spread', 'invalid.json'])
+                        output = mock_stdout.getvalue()
+                        error_output = mock_stderr.getvalue()
+
+                        assert result == 1
+                        assert 'Error:' in error_output
+            finally:
+                os.chdir(original_cwd)
 
 class TestOracleCLI(unittest.TestCase):
     def setUp(self):
@@ -878,6 +994,34 @@ class TestOracleCLI(unittest.TestCase):
                 output = mock_stdout.getvalue()
 
                 assert result == 0
+
+    def test_oracle_parser_has_save_invocation_flag(self):
+        """Verify parser recognizes --save-invocation flag."""
+        parser = oracle.create_oracle_parser()
+
+        args = parser.parse_args(['--save-invocation', 'test-invocation.txt'])
+        assert args.save_invocation == 'test-invocation.txt'
+
+    def test_oracle_save_invocation_invalid_extension(self):
+        """Test --save-invocation returns 1 for invalid extension."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = os.getcwd()
+
+            try:
+                os.chdir(temp_dir)
+                inv_file = Path("invalid.csv")
+                inv_file.write_text("test invocation")
+
+                with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                    with patch('sys.stderr', new_callable=StringIO) as mock_stderr:
+                        result = oracle.main(['--save-invocation', 'invalid.csv'])
+                        output = mock_stdout.getvalue()
+                        error_output = mock_stderr.getvalue()
+
+                        assert result == 1
+                        assert 'Invocation must be .txt or .md file' in error_output
+            finally:
+                os.chdir(original_cwd)
 
 
 if __name__ == "__main__":

@@ -252,6 +252,18 @@ oracle "Question" --invocation "By ancient powers, I seek wisdom"
 tarot "Question" --invoke  # Uses default invocation
 ```
 
+List and manage saved invocations:
+```bash
+# List all available invocations
+oracle --list-invocations
+
+# Show contents of a specific invocation
+oracle --show-invocation my-invocation
+
+# Save an invocation from a file to user directory
+oracle --save-invocation path/to/invocation.txt
+```
+
 ### Custom Decks
 
 Custom deck configurations are JSON files placed in:
@@ -289,6 +301,15 @@ tarot --export-deck rider-waite > rider-waite.json
 Use custom deck:
 ```bash
 tarot "Question" --deck my-custom-deck
+```
+
+Save decks and spreads to user directory:
+```bash
+# Save deck from JSON file to ~/.tarot-oracle/decks/
+tarot --save-deck path/to/my-deck.json
+
+# Save spread from JSON file to ~/.tarot-oracle/spreads/
+tarot --save-spread path/to/my-spread.json
 ```
 
 ## Spreads and Semantics
@@ -434,8 +455,12 @@ Both tools support these options:
 - `--lookup CODES` - Look up card codes (CSV format)
 - `--list-decks` - List available decks
 - `--list-spreads` - List available spreads
+- `--list-invocations` - List saved invocations
+- `--show-invocation NAME` - Show contents of a saved invocation
 - `--export-deck NAME` - Export bundled deck to stdout
 - `--export-spread NAME` - Export bundled spread to stdout
+- `--save-deck SOURCE` - Save deck from JSON file to user directory
+- `--save-spread SOURCE` - Save spread from JSON file to user directory
 - `--json` - Output in JSON format
 - `--no-keywords` - Hide card keywords
 - `--invoke` - Use default invocation
@@ -447,6 +472,9 @@ Both tools support these options:
 - `--model NAME` - Specific model to use
 - `--invocation TEXT` - Custom invocation text
 - `--invocation_name NAME` - Use named invocation
+- `--list-invocations` - List saved invocations
+- `--show-invocation NAME` - Show contents of a saved invocation
+- `--save-invocation SOURCE` - Save invocation from text file to user directory
 - `--save` / `--no-save` - Force save or skip saving session
 - `--config` - Display current configuration
 - `--list-models` - List available models
