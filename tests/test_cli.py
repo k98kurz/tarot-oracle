@@ -286,7 +286,9 @@ class TestOracleCLI(unittest.TestCase):
             'spread_display': 'Spread',
             'legend_display': 'Legend',
             'interpretation_requested': False,
-            'interpretation': None
+            'interpretation': None,
+            'provider_used': 'ollama',
+            'model_used': 'test-model'
         }
         self.mock_oracle_class.return_value = self.mock_instance
 
@@ -356,7 +358,9 @@ class TestOracleCLI(unittest.TestCase):
             'spread_display': 'Spread',
             'legend_display': 'Legend',
             'interpretation_requested': True,
-            'interpretation': 'The cards suggest...'
+            'interpretation': 'The cards suggest...',
+            'provider_used': 'ollama',
+            'model_used': 'test-model'
         }
         mock_client = MagicMock()
         self.mock_instance.get_client.return_value = mock_client
@@ -366,7 +370,7 @@ class TestOracleCLI(unittest.TestCase):
             output = mock_stdout.getvalue()
 
             assert result == 0
-            assert '=== Interpretation ===' in output
+            assert '=== Interpretation (ollama | test-model) ===' in output
 
     def test_oracle_save_session(self):
         """Test reading with --save flag."""
@@ -418,7 +422,9 @@ class TestOracleCLI(unittest.TestCase):
             'spread_display': 'Spread',
             'legend_display': 'Legend',
             'interpretation_requested': True,
-            'interpretation': None
+            'interpretation': None,
+            'provider_used': 'ollama',
+            'model_used': 'test-model'
         }
 
         test_cases = [
@@ -796,7 +802,9 @@ class TestOracleCLI(unittest.TestCase):
                 'spread_display': 'Spread',
                 'legend_display': 'Legend',
                 'interpretation_requested': True,
-                'interpretation': 'Interpretation'
+                'interpretation': 'Interpretation',
+                'provider_used': 'ollama',
+                'model_used': 'test-model'
             }
 
             with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
@@ -827,7 +835,9 @@ class TestOracleCLI(unittest.TestCase):
                 'spread_display': 'Spread',
                 'legend_display': 'Legend',
                 'interpretation_requested': False,
-                'interpretation': None
+                'interpretation': None,
+                'provider_used': 'ollama',
+                'model_used': 'test-model'
             }
 
             with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
@@ -858,7 +868,9 @@ class TestOracleCLI(unittest.TestCase):
                 'spread_display': 'Spread',
                 'legend_display': 'Legend',
                 'interpretation_requested': False,
-                'interpretation': None
+                'interpretation': None,
+                'provider_used': 'ollama',
+                'model_used': 'test-model'
             }
 
             with patch('sys.stdout', new_callable=StringIO) as mock_stdout:

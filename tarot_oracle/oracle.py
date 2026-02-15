@@ -361,7 +361,9 @@ def save_oracle_session(question: str, spread_type: str, result: dict[str, Any],
 
         # Mirror print_interpretation() if requested
         if result.get('interpretation_requested'):
-            content.append("# === Interpretation ===")
+            provider = result.get('provider_used', 'unknown')
+            model = result.get('model_used', 'unknown')
+            content.append(f"# === Interpretation ({provider} | {model}) ===")
             if result.get('interpretation'):
                 content.append(result['interpretation'])
             else:
@@ -517,6 +519,7 @@ Pay special attention to the positional meanings and how they affect each card's
             "legend_display": legend_display,
             "interpretation": interpretation,
             "provider_used": self.provider,
+            "model_used": model or self.default_model,
             "interpretation_requested": interpret,
             "interpretation_available": interpretation is not None,
             "question": question,
@@ -597,9 +600,9 @@ def print_cards(spread_display: str, legend_display: str, question: str, spread_
     print()
 
 
-def print_interpretation(interpretation: str | None) -> None:
+def print_interpretation(interpretation: str | None, provider: str, model: str) -> None:
     """Print AI interpretation or fallback message if unavailable."""
-    print("# === Interpretation ===")
+    print(f"# === Interpretation ({provider} | {model}) ===")
     if interpretation:
         print(interpretation)
     else:
@@ -751,7 +754,7 @@ def main(args=None) -> int:
     print_cards(result["spread_display"], result["legend_display"], result["question"], result["spread_type"])
 
     if result["interpretation_requested"]:
-        print_interpretation(result["interpretation"])
+        print_interpretation(result["interpretation"], result["provider_used"], result["model_used"])
 
     # Determine save behavior
     conf = config()
