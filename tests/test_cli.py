@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tarot_oracle import tarot, oracle
+from tarot_oracle.helpers import config
 
 
 class TestTarotCLI(unittest.TestCase):
@@ -289,14 +290,21 @@ class TestOracleCLI(unittest.TestCase):
         }
         self.mock_oracle_class.return_value = self.mock_instance
 
-        self.config_patcher = patch('crossconfig.get_config')
-        self.mock_config = self.config_patcher.start()
-        self.mock_config.return_value.autosave_sessions = False
+        # Save current autosave_sessions config value and disable for tests
+        conf = config()
+        self.original_autosave = conf.get('autosave_sessions')
+        conf.set('autosave_sessions', False)
 
     def tearDown(self):
-        """Clean up patches."""
+        """Clean up patches and restore config."""
         self.oracle_patcher.stop()
-        self.config_patcher.stop()
+
+        # Restore original autosave_sessions config value
+        conf = config()
+        if self.original_autosave is None:
+            conf.unset('autosave_sessions')
+        else:
+            conf.set('autosave_sessions', self.original_autosave)
 
     def test_oracle_parser_provider_choices(self):
         """Verify parser has correct provider choices."""
@@ -304,7 +312,7 @@ class TestOracleCLI(unittest.TestCase):
 
         args = parser.parse_args(['test'])
         assert args.provider == 'ollama'
-        assert args.interpret is False
+        assert args.interpret is None
 
         args = parser.parse_args(['--provider', 'openrouter', 'test'])
         assert args.provider == 'openrouter'
@@ -455,7 +463,8 @@ class TestOracleCLI(unittest.TestCase):
                     assert '=== Tarot Reading ===' in output
 
         with self.subTest(case='save flags'):
-            self.mock_config.autosave_sessions = True
+            conf = config()
+            conf.set('autosave_sessions', True)
 
             with patch('tarot_oracle.oracle.save_oracle_session') as mock_save:
                 mock_save.return_value = True
@@ -468,7 +477,7 @@ class TestOracleCLI(unittest.TestCase):
                     assert '=== Invocation ===' in output
                     mock_save.assert_not_called()
 
-                self.mock_config.autosave_sessions = False
+            conf.set('autosave_sessions', False)
 
     def test_oracle_custom_spreads(self):
         """Test multiple built-in spread types."""
@@ -612,19 +621,26 @@ class TestOracleCLI(unittest.TestCase):
 
     def test_oracle_config_display_with_defaults(self):
         """Test --config displays default values for unset keys."""
-        with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
-            result = oracle.main(['--config'])
-            output = mock_stdout.getvalue()
+        with patch('tarot_oracle.oracle.config') as mock_config_func:
+            mock_config = MagicMock()
+            mock_config.get.return_value = None
+            mock_config.list.return_value = []
+            mock_config_func.return_value = mock_config
 
-            assert result == 0
-            assert 'Oracle Configuration:' in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['provider']})" in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['ollama_model']})" in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['gemini_model']})" in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['openrouter_model']})" in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['ollama_host']})" in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['autosave_sessions']})" in output
-            assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['autosave_location']})" in output
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--config'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+                assert 'Oracle Configuration:' in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['provider']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['ollama_model']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['gemini_model']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['openrouter_model']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['ollama_host']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['autosave_sessions']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['autosave_location']})" in output
+                assert f"(default: {oracle.ORACLE_CONFIG_DEFAULTS['interpret']})" in output
 
     def test_oracle_set_config_provider_valid(self):
         """Test --set-config with valid provider values."""
@@ -727,6 +743,129 @@ class TestOracleCLI(unittest.TestCase):
                     mock_config.get.assert_any_call('ollama_model', oracle.ORACLE_CONFIG_DEFAULTS['ollama_model'])
                 finally:
                     self.oracle_patcher.start()
+
+    def test_oracle_set_config_interpret_valid(self):
+        """Test --set-config with interpret boolean values."""
+        valid_values = ['true', '1', 'yes', 'false', '0', 'no']
+
+        for value in valid_values:
+            with self.subTest(value=value):
+                with patch('tarot_oracle.oracle.config') as mock_config:
+                    mock_config.return_value.get.return_value = None
+                    mock_config.return_value.list.return_value = []
+
+                    with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                        result = oracle.main(['--set-config', 'interpret', value])
+                        output = mock_stdout.getvalue()
+
+                        assert result == 0
+                        assert 'Configuration set: interpret' in output
+
+    def test_oracle_set_config_interpret_invalid(self):
+        """Test --set-config rejects invalid interpret values."""
+        invalid_values = ['maybe', '2', 'invalid']
+
+        for value in invalid_values:
+            with self.subTest(value=value):
+                with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                    result = oracle.main(['--set-config', 'interpret', value])
+                    output = mock_stdout.getvalue()
+
+                    assert result == 1
+                    assert 'Error: Invalid value' in output
+
+    def test_oracle_interpret_flag_overrides_config(self):
+        """Test --interpret flag overrides config setting."""
+        config_values = {
+            'provider': 'ollama',
+            'ollama_model': 'test-model',
+            'ollama_host': 'localhost:11434',
+            'autosave_sessions': False,
+            'interpret': False
+        }
+
+        with patch('tarot_oracle.oracle.config') as mock_config_func:
+            mock_config = MagicMock()
+            mock_config.get.side_effect = lambda key, default=None: config_values.get(key, default)
+            mock_config.list.return_value = ['provider', 'ollama_model', 'interpret']
+            mock_config_func.return_value = mock_config
+
+            self.mock_instance.perform_divinatory_reading.return_value = {
+                'question': 'Test',
+                'spread_type': '3-card',
+                'spread_display': 'Spread',
+                'legend_display': 'Legend',
+                'interpretation_requested': True,
+                'interpretation': 'Interpretation'
+            }
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--interpret', 'Test question'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+
+    def test_oracle_no_interpret_flag_overrides_config(self):
+        """Test --no-interpret flag overrides config setting."""
+        config_values = {
+            'provider': 'ollama',
+            'ollama_model': 'test-model',
+            'ollama_host': 'localhost:11434',
+            'autosave_sessions': False,
+            'interpret': True
+        }
+
+        with patch('tarot_oracle.oracle.config') as mock_config_func:
+            mock_config = MagicMock()
+            mock_config.get.side_effect = lambda key, default=None: config_values.get(key, default)
+            mock_config.list.return_value = ['provider', 'ollama_model', 'interpret']
+            mock_config_func.return_value = mock_config
+
+            self.mock_instance.perform_divinatory_reading.return_value = {
+                'question': 'Test',
+                'spread_type': '3-card',
+                'spread_display': 'Spread',
+                'legend_display': 'Legend',
+                'interpretation_requested': False,
+                'interpretation': None
+            }
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['--no-interpret', 'Test question'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
+
+    def test_oracle_interpret_respects_config_default(self):
+        """Test interpret respects config default when no flag provided."""
+        config_values = {
+            'provider': 'ollama',
+            'ollama_model': 'test-model',
+            'ollama_host': 'localhost:11434',
+            'autosave_sessions': False,
+            'interpret': False
+        }
+
+        with patch('tarot_oracle.oracle.config') as mock_config_func:
+            mock_config = MagicMock()
+            mock_config.get.side_effect = lambda key, default=None: config_values.get(key, default)
+            mock_config.list.return_value = ['provider', 'ollama_model', 'interpret']
+            mock_config_func.return_value = mock_config
+
+            self.mock_instance.perform_divinatory_reading.return_value = {
+                'question': 'Test',
+                'spread_type': '3-card',
+                'spread_display': 'Spread',
+                'legend_display': 'Legend',
+                'interpretation_requested': False,
+                'interpretation': None
+            }
+
+            with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                result = oracle.main(['Test question'])
+                output = mock_stdout.getvalue()
+
+                assert result == 0
 
 
 if __name__ == "__main__":

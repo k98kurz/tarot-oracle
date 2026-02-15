@@ -50,7 +50,8 @@ ORACLE_CONFIG_KEYS = {
     "autosave_location",
     "gemini_model",
     "openrouter_model",
-    "ollama_model"
+    "ollama_model",
+    "interpret"
 }
 
 ORACLE_CONFIG_DEFAULTS = {
@@ -62,7 +63,8 @@ ORACLE_CONFIG_DEFAULTS = {
     "autosave_location": "~/oracles",
     "gemini_model": "gemini-3-flash",
     "openrouter_model": "z-ai/glm-4.5-air:free",
-    "ollama_model": "qwen3:0.6b"
+    "ollama_model": "qwen3:0.6b",
+    "interpret": "false"
 }
 
 
@@ -538,8 +540,12 @@ def create_oracle_parser() -> ArgumentParser:
                        default=ORACLE_CONFIG_DEFAULTS["provider"], help="LLM provider (default: ollama)")
     parser.add_argument("--invocation",
                        help="Custom invocation text (defaults to Hermes-Thoth/Prometheus if not provided)")
-    parser.add_argument("--interpret", action="store_true",
-                       help="Generate LLM interpretation of reading")
+    interpret_group = parser.add_mutually_exclusive_group()
+    interpret_group.add_argument("--interpret", action="store_true", dest="interpret",
+                               help="Generate LLM interpretation of reading (overrides config)")
+    interpret_group.add_argument("--no-interpret", action="store_false", dest="interpret",
+                               help="Do not generate LLM interpretation (overrides config)")
+    interpret_group.set_defaults(interpret=None)
     parser.add_argument("--model", help="Model name (provider-specific)")
 
     # Provider-specific options
@@ -635,7 +641,7 @@ def handle_config_commands(show_config: bool, set_config: list[str] | None, unse
                 print(f"Error: Invalid provider '{value}'. Valid providers: {', '.join(valid_providers)}")
                 return 1
 
-        if key == "autosave_sessions":
+        if key == "autosave_sessions" or key == "interpret":
             lower_value = value.lower()
             if lower_value in ("true", "1", "yes"):
                 conf.set(key, True)
@@ -694,8 +700,15 @@ def main(args=None) -> int:
         ollama_host=args.ollama_host
     )
 
+    # Resolve interpret value: flag override > config > default
+    conf = config()
+    interpret_config = conf.get("interpret", os.getenv("TAROT_ORACLE_INTERPRET", ORACLE_CONFIG_DEFAULTS["interpret"]))
+    interpret = interpret_config if isinstance(interpret_config, bool) else str(interpret_config).lower() in ["true", "1", "yes"]
+    if args.interpret is not None:
+        interpret = args.interpret
+
     # Check availability if interpretation requested
-    if args.interpret:
+    if interpret:
         if args.provider == "openrouter":
             client = oracle.get_client()
             # We know this is OpenRouterClient when provider is "openrouter"
@@ -719,7 +732,7 @@ def main(args=None) -> int:
     result = oracle.perform_divinatory_reading(
         question=args.question,
         spread_type=args.spread,
-        interpret=args.interpret,
+        interpret=interpret,
         model=args.model,
         timeout=args.timeout,
         invocation=args.invocation,  # Pass invocation (None or custom)
