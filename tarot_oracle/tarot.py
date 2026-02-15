@@ -12,7 +12,7 @@ from .data_loader import BundledDataLoader
 from .helpers import (
     config, sanitize_filename, validate_path_security, ensure_config_directories
 )
-from .loaders import SpreadLoader
+from .loaders import SpreadLoader, InvocationLoader
 
 import ast
 import json
@@ -893,36 +893,84 @@ def resolve_card_codes(codes: str) -> list[Card]:
 def create_parser() -> ArgumentParser:
     """Create command line argument parser."""
     parser = ArgumentParser(description="Tarot divination script")
-    parser.add_argument("question", nargs='?', help="Question for tarot reading (ignored with --lookup, --list-decks, --export-deck, and --export-spread)")
-    parser.add_argument("--lookup", help="Look up card codes (CSV format, e.g., 'I,W3,C_Q,XVII')")
+    parser.add_argument(
+        "question", nargs='?',
+        help="Question for tarot reading (ignored with --lookup, --list-decks, "
+        "--export-deck, and --export-spread)"
+    )
+    parser.add_argument(
+        "--lookup", help="Look up card codes (CSV format, e.g., 'I,W3,C_Q,XVII')"
+    )
     parser.add_argument("--invocation", help="Custom invocation to influence reading")
-    parser.add_argument("--invoke", action="store_true",
-                       help="Use default invocation to influence reading")
-    parser.add_argument("--spread", default="3-card",
-                       help=f"Spread layout (default: 3-card). Available: {BundledDataLoader.list_spreads()} or custom matrix")
-    parser.add_argument("--random", type=int, default=8,
-                       help="Add N random bytes to RNG seed for entropy (default: 8)")
-    parser.add_argument("--no-keywords", action="store_true",
-                       help="Hide card keyword descriptions (shown by default)")
-    parser.add_argument("--reversed", action="store_true",
-                       help="Allow cards to appear reversed")
-    parser.add_argument("--json", action="store_true",
-                       help="Output reading in JSON format")
+    parser.add_argument(
+        "--invocation-name", dest="invocation_name",
+        help="Load invocation by name (custom file or bundled invocation)"
+    )
+    parser.add_argument(
+        "--invoke", action="store_true",
+        help="Use default invocation to influence reading"
+    )
+    parser.add_argument(
+        "--spread", default="3-card",
+        help=f"Spread layout (default: 3-card). Available: "
+        f"{BundledDataLoader.list_spreads()} or custom matrix"
+    )
+    parser.add_argument(
+        "--random", type=int, default=8,
+        help="Add N random bytes to RNG seed for entropy (default: 8)"
+    )
+    parser.add_argument(
+        "--no-keywords", action="store_true",
+        help="Hide card keyword descriptions (shown by default)"
+    )
+    parser.add_argument(
+        "--reversed", action="store_true",
+        help="Allow cards to appear reversed"
+    )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Output reading in JSON format"
+    )
     parser.add_argument("--deck", help="Use custom deck configuration filename")
-    parser.add_argument("--list-decks", action="store_true",
-                       help="List available deck configurations")
-    parser.add_argument("--list-spreads", action="store_true",
-                       help="List available spread configurations")
-    parser.add_argument("--export-deck", metavar="NAME",
-                       help="Export a bundled deck to stdout (pipe to file to save)")
-    parser.add_argument("--export-spread", metavar="NAME",
-                       help="Export a bundled spread to stdout (pipe to file to save)")
+    parser.add_argument(
+        "--list-decks", action="store_true",
+        help="List available deck configurations"
+    )
+    parser.add_argument(
+        "--list-spreads", action="store_true",
+        help="List available spread configurations"
+    )
+    parser.add_argument(
+        "--list-invocations", action="store_true",
+        help="List available invocations (bundled and custom)"
+    )
+    parser.add_argument(
+        "--export-deck", metavar="NAME",
+        help="Export a bundled deck to stdout (pipe to file to save)"
+    )
+    parser.add_argument(
+        "--export-spread", metavar="NAME",
+        help="Export a bundled spread to stdout (pipe to file to save)"
+    )
+    parser.add_argument(
+        "--show-invocation", metavar="NAME",
+        help="Display invocation text by name and exit"
+    )
     return parser
 
 
 def get_invocation_text(args) -> str|None:
     """Get invocation text from command line arguments."""
-    if args.invocation:
+    if args.invocation_name:
+        loader = InvocationLoader()
+        invocation = loader.load_invocation(args.invocation_name)
+        if invocation:
+            return invocation
+        bundled = BundledDataLoader.load_invocation(args.invocation_name)
+        if bundled:
+            return bundled
+        raise ValueError(f"Invocation '{args.invocation_name}' not found")
+    elif args.invocation:
         return args.invocation
     elif args.invoke:
         return BundledDataLoader.load_invocation("default-hermes-thoth-prometheus")
@@ -940,6 +988,25 @@ def main(args=None) -> int:
         args = parser.parse_args(args)
 
     ensure_config_directories()
+
+    if args.show_invocation:
+        loader = InvocationLoader()
+        custom_invocation = loader.load_invocation(args.show_invocation)
+        if custom_invocation:
+            print(custom_invocation)
+            return 0
+        bundled_invocation = BundledDataLoader.load_invocation(
+            args.show_invocation
+        )
+        if bundled_invocation:
+            print(bundled_invocation)
+            return 0
+        print(
+            f"Error: Invocation '{args.show_invocation}' not found",
+            file=stderr
+        )
+        print("Use --list-invocations to see available invocations", file=stderr)
+        return 1
 
     # Handle list-decks mode
     if args.list_decks:
@@ -998,6 +1065,29 @@ def main(args=None) -> int:
                 name = spread['name']
                 description = spread['description']
                 print(f"  {filename:<20} - {name:<20} - {description}")
+
+        return 0
+
+    # Handle list-invocations mode
+    if args.list_invocations:
+        loader = InvocationLoader()
+        user_invocations = loader.list_invocations()
+        bundled_invocations = BundledDataLoader.list_invocations()
+
+        print("Bundled invocations:")
+        for inv_name in bundled_invocations:
+            print(f"  {inv_name:<20} - (built-in)")
+
+        if user_invocations:
+            print("\nUser invocations:")
+            for inv in user_invocations:
+                filename = inv['filename']
+                name = inv['name']
+                preview = inv['preview']
+                if preview and preview != "Empty invocation file":
+                    print(f"  {filename:<20} - {name:<20} - {preview}")
+                else:
+                    print(f"  {filename:<20} - {name:<20}")
 
         return 0
 

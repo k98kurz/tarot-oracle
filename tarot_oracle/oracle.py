@@ -656,7 +656,8 @@ class Oracle:
             "interpretation_requested": interpret,
             "interpretation_available": interpretation is not None,
             "question": question,
-            "spread_type": spread_type
+            "spread_type": spread_type,
+            "invocation": invocation
         }
 
 
@@ -687,6 +688,10 @@ def create_oracle_parser() -> ArgumentParser:
     parser.add_argument(
         "--invocation",
         help="Custom invocation text (uses default invocation if not provided)"
+    )
+    parser.add_argument(
+        "--invocation-name", dest="invocation_name",
+        help="Load invocation by name (custom file or bundled invocation)"
     )
     interpret_group = parser.add_mutually_exclusive_group()
     interpret_group.add_argument(
@@ -745,6 +750,10 @@ def create_oracle_parser() -> ArgumentParser:
         help="List saved oracle sessions"
     )
     parser.add_argument(
+        "--list-invocations", action="store_true",
+        help="List available invocations (bundled and custom)"
+    )
+    parser.add_argument(
         "--reinterpret", metavar="SESSION_FILE",
         help="Reinterpret a saved session with new AI interpretation"
     )
@@ -758,6 +767,10 @@ def create_oracle_parser() -> ArgumentParser:
     )
     parser.add_argument(
         "--unset-config", metavar="KEY", help="Remove configuration key and save"
+    )
+    parser.add_argument(
+        "--show-invocation", metavar="NAME",
+        help="Display invocation text by name and exit"
     )
 
     return parser
@@ -1068,6 +1081,51 @@ def handle_list_saved_sessions(save_location: str) -> int:
         return 1
 
 
+def handle_list_invocations() -> int:
+    """List available invocations (bundled and custom).
+        Returns 0 on success, 1 on error.
+    """
+    try:
+        from .loaders import InvocationLoader
+
+        loader = InvocationLoader()
+        custom_invocations = loader.list_invocations()
+        bundled_invocations = BundledDataLoader.list_invocations()
+
+        print("Available Invocations:")
+        print()
+
+        if bundled_invocations:
+            print("Bundled Invocations:")
+            for inv in bundled_invocations:
+                print(f"  * {inv}")
+            print()
+
+        if custom_invocations:
+            print("Custom Invocations:")
+            for inv in custom_invocations:
+                print(f"  * {inv['name']}")
+                print(f"      ({inv['filename']})")
+                preview = inv['preview']
+                if preview and preview != "Empty invocation file":
+                    print(f"      Preview: {preview}")
+            print()
+
+        if not bundled_invocations and not custom_invocations:
+            print("  No invocations found.")
+            print()
+            print("You can:")
+            print("  - Export bundled invocations with: oracle --export-invocation <name>")
+            print("  - Create custom invocations in ~/.config/tarot-oracle/invocations/")
+        else:
+            print("Use with: oracle --invocation-name <name>")
+
+        return 0
+    except Exception as e:
+        print(f"Error listing invocations: {e}", file=stderr)
+        return 1
+
+
 def handle_show_saved_session(session_file: str, save_location: str) -> int:
     """Read and display a saved oracle session.
         Returns 0 on success, 1 on error.
@@ -1213,6 +1271,27 @@ def main(args=None) -> int:
     ensure_config_directories()
     conf = config()
 
+    if args.show_invocation:
+        from .loaders import InvocationLoader
+        loader = InvocationLoader()
+        custom_invocation = loader.load_invocation(args.show_invocation)
+        if custom_invocation:
+            print(custom_invocation)
+            return 0
+        bundled_invocation = BundledDataLoader.load_invocation(
+            args.show_invocation
+        )
+        if bundled_invocation:
+            print(bundled_invocation)
+            return 0
+        print(
+            f"Error: Invocation '{args.show_invocation}' not found",
+            file=sys.stderr
+        )
+        print("Use --list-invocations to see available invocations",
+              file=sys.stderr)
+        return 1
+
     # Handle configuration management commands
     if args.config or args.set_config or args.unset_config:
         return handle_config_commands(args.config, args.set_config, args.unset_config)
@@ -1245,6 +1324,10 @@ def main(args=None) -> int:
         if args.save_path:
             save_location = os.path.expanduser(args.save_path)
         return handle_list_saved_sessions(save_location)
+
+    # Handle --list-invocations flag
+    if args.list_invocations:
+        return handle_list_invocations()
 
     # Handle --show-saved flag
     if args.show_saved:
@@ -1291,6 +1374,17 @@ def main(args=None) -> int:
             "manage configuration."
         )
         return 1
+
+    # Validate invocation_name if provided
+    if args.invocation_name:
+        from .loaders import InvocationLoader
+        loader = InvocationLoader()
+        custom_invocation = loader.load_invocation(args.invocation_name)
+        bundled_invocation = BundledDataLoader.load_invocation(args.invocation_name)
+        if not custom_invocation and not bundled_invocation:
+            print(f"Error: Invocation '{args.invocation_name}' not found", file=stderr)
+            print("Use --list-invocations to see available invocations", file=stderr)
+            return 1
 
     # Create oracle instance with provider-specific options
     oracle = Oracle(
@@ -1346,7 +1440,8 @@ def main(args=None) -> int:
         interpret=interpret,
         model=args.model,
         timeout=args.timeout,
-        invocation=args.invocation,  # Pass invocation (None or custom)
+        invocation=args.invocation,
+        invocation_name=args.invocation_name,
         random_bytes=args.random,
         allow_reversed=args.reversed
     )
@@ -1357,7 +1452,7 @@ def main(args=None) -> int:
         return 1
 
     # Display results in the requested order
-    invocation_text = InvocationManager.get_default_invocation()
+    invocation_text = result.get("invocation", InvocationManager.get_default_invocation())
     print_invocation(invocation_text)
     print_cards(
         result["spread_display"], result["legend_display"], result["question"],
