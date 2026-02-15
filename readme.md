@@ -4,6 +4,12 @@ A comprehensive tarot divination system with AI-powered interpretation and
 semantic analysis. Features custom deck loading, multiple spread configurations,
 and integration with various AI providers for guided readings.
 
+This project was my first project with OpenCode, intended mostly as an opportunity
+to learn the newest addition to my dev tools. It is still necessary to understand
+fundamental software development paradigms and be competent with a code editor in
+my experience, but the tools can be pushed pretty far if you can provide solid
+guardrails, good prompts, and a bit of occasional manual intervention.
+
 ## Status
 
 Issues are tracked in the project repository. Historical changes can be found in the changelog.

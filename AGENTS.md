@@ -13,6 +13,7 @@ This file provides essential information for agentic coding systems working in t
 - **Single test**: `python -m unittest tests.test_module.TestClass.test_method`
   - Example: `python -m unittest tests.test_tarot.TestTarot.test_deck_loader_security`
 - **Pytest alternative**: `python -m pytest tests/` (if pytest is installed)
+- Do not use tinyllama. tinyllama is retarded.
 
 ### Build Commands
 - No build commands required - uses Python packaging with pyproject.toml
@@ -27,6 +28,42 @@ This file provides essential information for agentic coding systems working in t
 ### Python Version
 - Minimum: Python 3.10+
 - Use Python 3.10+ built-in types (PEP 604 style)
+
+### Line Lengths
+- Soft-max line length of 80 chars for normal code and 72 chars for docstrings
+- Docstrings should look like the following:
+```python
+def something():
+    """This is the docstring for something(). It will wrap around onto
+        the next line indented in one additional tab length, then it
+        will end with the closing triple quotes on a new line.
+    """
+    ...
+```
+- If a piece of code calling a function will be too long, start the args on a new line:
+```python
+        # some indented code
+        thing = some_class.some_method(
+            "this is the first thing" if some_param > some_threshold else
+            "this is the alternate",
+            123
+        )
+```
+- If a print statement is too long, break apart the string:
+```python
+        # some indented code
+        print(
+            "This is a very long print statement with f-string: "
+            f"{some_dict['some_key'] if 'some_key' in some_dict else 'nope'}"
+        )
+```
+- If a conditional is too long, use a backslash to continue on the next line:
+```python
+        # some indented code
+        if something.value < threshold and something_else in whatever \
+            and one_more_condition:
+            ...
+```
 
 ### Type Annotations
 - Use union type syntax with `|`: `str | None` instead of `Optional[str]`

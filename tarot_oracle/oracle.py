@@ -13,7 +13,7 @@ from pathlib import Path
 from sys import stderr
 from typing import Any, cast
 from tarot_oracle.data_loader import BundledDataLoader
-from tarot_oracle.helpers import config, ensure_config_directories, lstrip_lines
+from tarot_oracle.helpers import config, ensure_config_directories, lstrip_lines, validate_path_security
 from tarot_oracle.loaders import InvocationLoader
 from tarot_oracle.tarot import Card, SpreadRenderer, TarotDivination
 
@@ -741,6 +741,18 @@ def create_oracle_parser() -> ArgumentParser:
         help="List available models for the specified provider"
     )
     parser.add_argument(
+        "--list-saved", action="store_true",
+        help="List saved oracle sessions"
+    )
+    parser.add_argument(
+        "--reinterpret", metavar="SESSION_FILE",
+        help="Reinterpret a saved session with new AI interpretation"
+    )
+    parser.add_argument(
+        "--show-saved", metavar="SESSION_FILE",
+        help="Display a saved oracle session"
+    )
+    parser.add_argument(
         "--set-config", nargs=2, metavar=("KEY", "VALUE"),
         help="Set configuration key=value and save"
     )
@@ -1003,6 +1015,189 @@ def handle_list_models(oracle: "Oracle", provider: str) -> int:
         return 1
 
 
+def handle_list_saved_sessions(save_location: str) -> int:
+    """List saved oracle sessions from save directory.
+        Returns 0 on success, 1 on error.
+    """
+    try:
+        save_path = Path(save_location).expanduser()
+        if not save_path.exists() or not save_path.is_dir():
+            print(f"Save directory not found: {save_location}")
+            return 1
+
+        session_files = sorted(save_path.glob("*.md"), reverse=True)
+
+        if not session_files:
+            print("No saved sessions found.")
+            return 0
+
+        print(f"Saved Sessions ({len(session_files)} total):")
+        print()
+
+        for session_file in session_files:
+            filename = session_file.name
+
+            question = "Unknown"
+            spread = "Unknown"
+            has_interpretation = False
+
+            try:
+                with open(session_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    q_match = re.search(r'\*\*Question\*\*:\s*(.+)', content)
+                    if q_match:
+                        question = q_match.group(1).strip()
+                    s_match = re.search(r'\*\*Spread\*\*:\s*(.+)', content)
+                    if s_match:
+                        spread = s_match.group(1).strip()
+                    has_interpretation = "# === Interpretation" in content
+            except Exception:
+                pass
+
+            question_display = question[:70] + "..." if len(question) > 70 else question
+            interp_marker = " [AI]" if has_interpretation else ""
+
+            print(f"  {filename}")
+            print(f"    Question: {question_display}")
+            print(f"    Spread: {spread}{interp_marker}")
+            print()
+
+        return 0
+    except Exception as e:
+        print(f"Error listing saved sessions: {e}", file=stderr)
+        return 1
+
+
+def handle_show_saved_session(session_file: str, save_location: str) -> int:
+    """Read and display a saved oracle session.
+        Returns 0 on success, 1 on error.
+    """
+    try:
+        save_path = Path(save_location).expanduser()
+        file_path = save_path / session_file
+
+        if not file_path.exists():
+            file_path = Path(session_file).expanduser()
+            if not file_path.exists():
+                print(f"Session file not found: {session_file}")
+                return 1
+            resolved_save_path = file_path.parent.resolve()
+            resolved_file_path = file_path.resolve()
+            if not resolved_file_path.is_relative_to(resolved_save_path):
+                raise ValueError(f"Invalid file path: {session_file}")
+        else:
+            resolved_save_path = save_path.resolve()
+            resolved_file_path = file_path.resolve()
+            if not resolved_file_path.is_relative_to(resolved_save_path):
+                raise ValueError(f"Invalid file path: {session_file}")
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        print(content)
+        return 0
+
+    except ValueError as e:
+        print(f"Error: {e}", file=stderr)
+        return 1
+    except Exception as e:
+        print(f"Error showing saved session: {e}", file=stderr)
+        return 1
+
+
+def handle_reinterpret_session(
+        session_file: str, oracle: "Oracle", model: str | None, save_location: str
+    ) -> int:
+    """Reinterpret a saved session with new AI interpretation.
+        Returns 0 on success, 1 on error.
+    """
+    try:
+        save_path = Path(save_location).expanduser()
+        file_path = save_path / session_file
+
+        if not file_path.exists():
+            file_path = Path(session_file).expanduser()
+            if not file_path.exists():
+                print(f"Session file not found: {session_file}")
+                return 1
+            resolved_save_path = file_path.parent.resolve()
+            resolved_file_path = file_path.resolve()
+            if not resolved_file_path.is_relative_to(resolved_save_path):
+                raise ValueError(f"Invalid file path: {session_file}")
+        else:
+            resolved_save_path = save_path.resolve()
+            resolved_file_path = file_path.resolve()
+            if not resolved_file_path.is_relative_to(resolved_save_path):
+                raise ValueError(f"Invalid file path: {session_file}")
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        q_match = re.search(r'\*\*Question\*\*:\s*(.+)', content)
+        s_match = re.search(r'\*\*Spread\*\*:\s*(.+)', content)
+
+        if not q_match or not s_match:
+            print("Error: Could not extract question/spread from session file")
+            return 1
+
+        question = q_match.group(1).strip()
+        spread_type = s_match.group(1).strip()
+
+        legend_end = content.find("# === Interpretation")
+        if legend_end == -1:
+            legend_end = len(content)
+
+        base_content = content[:legend_end].strip()
+
+        invocation_match = re.search(
+            r'# === Invocation ===\s*(.+?)\s*# === Tarot Reading ===',
+            base_content,
+            re.DOTALL
+        )
+        invocation_text = invocation_match.group(1).strip() if invocation_match else InvocationManager.get_default_invocation()
+
+        interpretation = oracle.get_interpretation(
+            spread_display="",
+            legend_display=base_content,
+            invocation=invocation_text,
+            question=question,
+            model=model,
+            spread_type=spread_type
+        )
+
+        if interpretation is None:
+            print("Error: Failed to generate interpretation")
+            return 1
+
+        new_content = base_content
+
+        provider = str(oracle.provider)
+        model_used = str(model or oracle.default_model)
+        new_content += f"\n\n# === Interpretation ({provider} | {model_used}) ===\n"
+        new_content += interpretation
+
+        now = datetime.now()
+        timestamp = now.strftime("%Y%m%d-%H%M%S")
+        stem = file_path.stem
+        new_filename = f"{stem}-reinterpreted-{timestamp}.md"
+        new_file_path = file_path.parent / new_filename
+
+        with open(new_file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+
+        print(new_content)
+        print()
+        print(f"[Session saved to: {new_file_path}]")
+        return 0
+
+    except ValueError as e:
+        print(f"Error: {e}", file=stderr)
+        return 1
+    except Exception as e:
+        print(f"Error reinterpreting session: {e}", file=stderr)
+        return 1
+
+
 def main(args=None) -> int:
     """Oracle CLI entry point. Parses arguments, runs reading,
         displays results, optionally saves session. Returns exit code 
@@ -1016,6 +1211,7 @@ def main(args=None) -> int:
         args = parser.parse_args(args)
 
     ensure_config_directories()
+    conf = config()
 
     # Handle configuration management commands
     if args.config or args.set_config or args.unset_config:
@@ -1036,6 +1232,57 @@ def main(args=None) -> int:
             ollama_host=args.ollama_host
         )
         return handle_list_models(oracle, args.provider)
+
+    # Handle --list-saved flag
+    if args.list_saved:
+        save_location = str(conf.get(
+            "autosave_location",
+            os.getenv(
+                "TAROT_ORACLE_AUTOSAVE_LOCATION",
+                os.path.expanduser(ORACLE_CONFIG_DEFAULTS["autosave_location"])
+            )
+        ))
+        if args.save_path:
+            save_location = os.path.expanduser(args.save_path)
+        return handle_list_saved_sessions(save_location)
+
+    # Handle --show-saved flag
+    if args.show_saved:
+        save_location = str(conf.get(
+            "autosave_location",
+            os.getenv(
+                "TAROT_ORACLE_AUTOSAVE_LOCATION",
+                os.path.expanduser(ORACLE_CONFIG_DEFAULTS["autosave_location"])
+            )
+        ))
+        if args.save_path:
+            save_location = os.path.expanduser(args.save_path)
+        return handle_show_saved_session(args.show_saved, save_location)
+
+    # Handle --reinterpret flag
+    if args.reinterpret:
+        save_location = str(conf.get(
+            "autosave_location",
+            os.getenv(
+                "TAROT_ORACLE_AUTOSAVE_LOCATION",
+                os.path.expanduser(ORACLE_CONFIG_DEFAULTS["autosave_location"])
+            )
+        ))
+        if args.save_path:
+            save_location = os.path.expanduser(args.save_path)
+
+        oracle = Oracle(
+            provider=args.provider,
+            model=args.model,
+            api_key=args.api_key,
+            ollama_host=args.ollama_host
+        )
+        return handle_reinterpret_session(
+            args.reinterpret,
+            oracle,
+            args.model,
+            save_location
+        )
 
     # Validate that question is provided for reading mode
     if not args.question:
