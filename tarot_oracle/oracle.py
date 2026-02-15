@@ -8,6 +8,7 @@ saving, and both CLI and programmatic interfaces."""
 
 from argparse import ArgumentParser
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from sys import stderr
 from typing import Any, cast
@@ -62,7 +63,7 @@ ORACLE_CONFIG_DEFAULTS = {
     "autosave_sessions": "true",
     "autosave_location": "~/oracles",
     "gemini_model": "gemini-3-flash",
-    "openrouter_model": "z-ai/glm-4.5-air:free",
+    "openrouter_model": "openrouter/free",
     "ollama_model": "qwen3:0.6b",
     "interpret": "false"
 }
@@ -238,6 +239,42 @@ class OpenRouterClient:
             print(f"Error validating OpenRouter API key: {e}", file=sys.stderr)
             return False
 
+    def list_models(self) -> list[dict[str, Any]]:
+        """List all available models from OpenRouter.
+
+        Returns list of model dictionaries with id, name, pricing, and context_length.
+        Raises ValueError on API errors."""
+        url = f"{self.base_url}/models"
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "HTTP-Referer": "https://github.com/tarot-oracle/tarot-oracle",
+            "X-Title": "Tarot Oracle"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("data", [])
+            elif response.status_code == 401:
+                raise ValueError("Invalid OpenRouter API key")
+            elif response.status_code == 429:
+                retry_after = response.headers.get('Retry-After')
+                raise ValueError(f"OpenRouter API rate limit exceeded. Retry after: {retry_after}")
+            else:
+                raise ValueError(f"OpenRouter API returned status {response.status_code}: {response.text}")
+
+        except requests.exceptions.Timeout:
+            raise ValueError(f"OpenRouter API request timed out")
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"OpenRouter API request failed: {e}")
+        except ValueError:
+            raise
+        except Exception as e:
+            raise ValueError(f"Unexpected error listing OpenRouter models: {e}")
+
 
 class OllamaClient:
     """Client for local Ollama AI server integration.
@@ -282,6 +319,27 @@ class OllamaClient:
                 return False
         except Exception:
             return False
+
+    def list_models(self) -> list[dict[str, Any]]:
+        """List all available models from Ollama server.
+
+        Returns list of model dictionaries with name, size, and modified date.
+        Raises ValueError on connection errors."""
+        url = f"http://{self.host}/api/tags"
+
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("models", [])
+            else:
+                raise ValueError(f"Ollama API returned status {response.status_code}")
+        except requests.exceptions.Timeout:
+            raise ValueError(f"Ollama API request timed out")
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"Ollama API request failed: {e}")
+        except Exception as e:
+            raise ValueError(f"Unexpected error listing Ollama models: {e}")
 
 
 def extract_card_codes_for_filename(legend_display: str) -> list[str]:
@@ -574,6 +632,8 @@ def create_oracle_parser() -> ArgumentParser:
     # Configuration management
     parser.add_argument("--config", action="store_true",
                        help="Display current configuration")
+    parser.add_argument("--list-models", action="store_true",
+                       help="List available models for the specified provider")
     parser.add_argument("--set-config", nargs=2, metavar=("KEY", "VALUE"),
                        help="Set configuration key=value and save")
     parser.add_argument("--unset-config", metavar="KEY",
@@ -673,6 +733,109 @@ def handle_config_commands(show_config: bool, set_config: list[str] | None, unse
     return 0
 
 
+def handle_list_models(oracle: "Oracle", provider: str) -> int:
+    """Handle listing available models for the specified provider.
+
+    Returns 0 on success, 1 on error."""
+    client = oracle.get_client()
+
+    try:
+        models = []
+
+        if provider == "openrouter":
+            if isinstance(client, OpenRouterClient):
+                models = client.list_models()
+            else:
+                print("Error: OPENROUTER_API_KEY must be set to list models", file=sys.stderr)
+                return 1
+        elif provider == "ollama":
+            if isinstance(client, OllamaClient):
+                models = client.list_models()
+            else:
+                print(f"Error: Could not get Ollama client for provider {provider}", file=sys.stderr)
+                return 1
+        else:
+            print(f"Error: Unknown provider {provider}", file=sys.stderr)
+            return 1
+
+        print(f"Available Models for {provider}:")
+        print("")
+
+        if provider == "openrouter":
+            max_id_len = len("ID")
+            max_name_len = len("Name")
+            max_price_len = len("Price/1M Tokens")
+
+            for model in models:
+                model_id = model.get("id", "unknown")
+                model_name = model.get("name", "unknown")
+                pricing = model.get("pricing", {})
+                prompt_price = pricing.get("prompt", 0)
+                completion_price = pricing.get("completion", 0)
+                try:
+                    if prompt_price == "-1" or completion_price == "-1":
+                        price_str = "Variable"
+                    elif not prompt_price or not completion_price:
+                        price_str = "N/A"
+                    else:
+                        prompt_decimal = Decimal(str(prompt_price)) * Decimal('1000000')
+                        completion_decimal = Decimal(str(completion_price)) * Decimal('1000000')
+                        price_str = f"${prompt_decimal:.2f} / ${completion_decimal:.2f}"
+                except (ValueError, TypeError):
+                    price_str = "N/A"
+                max_id_len = max(max_id_len, len(model_id))
+                max_name_len = max(max_name_len, len(model_name))
+                max_price_len = max(max_price_len, len(price_str))
+
+            id_width = max_id_len
+            name_width = max_name_len
+            price_width = max_price_len
+
+            print(f"{'ID':<{id_width}} | {'Name':<{name_width}} | {'Price/1M Tokens':<{price_width}}")
+            print("-" * (id_width + 3 + name_width + 3 + price_width))
+
+            for model in models:
+                model_id = model.get("id", "unknown")
+                model_name = model.get("name", "unknown")
+                pricing = model.get("pricing", {})
+                prompt_price = pricing.get("prompt", 0)
+                completion_price = pricing.get("completion", 0)
+                try:
+                    if prompt_price == "-1" or completion_price == "-1":
+                        price_str = "Variable"
+                    elif not prompt_price or not completion_price:
+                        price_str = "N/A"
+                    else:
+                        prompt_decimal = Decimal(str(prompt_price)) * Decimal('1000000')
+                        completion_decimal = Decimal(str(completion_price)) * Decimal('1000000')
+                        price_str = f"${prompt_decimal:.2f} / ${completion_decimal:.2f}"
+                except (ValueError, TypeError):
+                    price_str = "N/A"
+                print(f"{model_id:<{id_width}} | {model_name:<{name_width}} | {price_str:<{price_width}}")
+        elif provider == "ollama":
+            print(f"{'Model Name':<30} | Size     | Modified")
+            print("-" * 60)
+            for model in models:
+                model_name = model.get("name", "unknown")
+                model_size = model.get("details", {}).get("parameter_size", "N/A")
+                model_modified = model.get("modified_at", "N/A")
+                if isinstance(model_size, (int, float)):
+                    size_str = f"{model_size / (1024**3):.1f} GB"
+                else:
+                    size_str = str(model_size)
+                print(f"{model_name:<30} | {size_str:<9} | {model_modified}")
+
+        print("")
+        return 0
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        return 1
+
+
 def main(args=None) -> int:
     """Oracle CLI entry point. Parses arguments, runs reading, displays results, optionally saves session.
 
@@ -689,6 +852,19 @@ def main(args=None) -> int:
     # Handle configuration management commands
     if args.config or args.set_config or args.unset_config:
         return handle_config_commands(args.config, args.set_config, args.unset_config)
+
+    # Handle --list-models flag
+    if args.list_models:
+        if args.provider == "gemini":
+            print("Error: Model listing not available for Gemini provider", file=sys.stderr)
+            return 1
+        oracle = Oracle(
+            provider=args.provider,
+            model=args.model,
+            api_key=args.api_key,
+            ollama_host=args.ollama_host
+        )
+        return handle_list_models(oracle, args.provider)
 
     # Validate that question is provided for reading mode
     if not args.question:
