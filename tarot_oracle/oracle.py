@@ -772,6 +772,10 @@ def create_oracle_parser() -> ArgumentParser:
         "--show-invocation", metavar="NAME",
         help="Display invocation text by name and exit"
     )
+    parser.add_argument(
+        "--save-invocation", metavar="SOURCE",
+        help="Save invocation from current directory to config location"
+    )
 
     return parser
 
@@ -1258,7 +1262,7 @@ def handle_reinterpret_session(
 
 def main(args=None) -> int:
     """Oracle CLI entry point. Parses arguments, runs reading,
-        displays results, optionally saves session. Returns exit code 
+        displays results, optionally saves session. Returns exit code
         0 for success, non-zero for error).
     """
     parser = create_oracle_parser()
@@ -1291,6 +1295,20 @@ def main(args=None) -> int:
         print("Use --list-invocations to see available invocations",
               file=sys.stderr)
         return 1
+
+    # Handle --save-invocation mode
+    if args.save_invocation:
+        from .loaders import InvocationLoader
+        inv_loader = InvocationLoader()
+        try:
+            saved_path = inv_loader.save_invocation(args.save_invocation)
+            print(f"Invocation saved to: {saved_path}")
+            return 0
+        except KeyboardInterrupt:
+            return 0
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
 
     # Handle configuration management commands
     if args.config or args.set_config or args.unset_config:

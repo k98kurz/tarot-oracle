@@ -1,52 +1,36 @@
 from pathlib import Path
 from typing import Any
-
+from .helpers import config, sanitize_filename, validate_path_security
 import json
 import re
-
-from .helpers import config, sanitize_filename, validate_path_security
-
-# Custom exceptions removed - using standard TypeError and ValueError instead
 
 
 class InvocationLoader:
     """Handles loading and management of custom invocation files.
 
-    Provides secure loading of invocation text files with support for multiple
-    formats and comprehensive search order prioritization.
+        Provides secure loading of invocation text files with support for
+        multiple formats and comprehensive search order prioritization.
 
-    Search Order:
-        1. ./name (exact match)
-        2. ./name.txt
-        3. ./name.md
-        4. ~/.config/tarot-oracle/invocations/name
-         5. ~/.config/tarot-oracle/invocations/name.txt
-         6. ~/.config/tarot-oracle/invocations/name.md
-
-    Attributes:
-        No persistent attributes - stateless loader design.
-
-    Example:
-        >>> loader = InvocationLoader()
-        >>> invocation = loader.load_invocation("hermes-thoth")
-        >>> if invocation:
-        ...     print(invocation)
-        >>>
-        >>> invocations = loader.list_invocations()
-        >>> for item in invocations:
-        ...     print(f"{item['filename']}: {item['preview']}")
+        Search Order:
+            1. ./name (exact match)
+            2. ./name.txt
+            3. ./name.md
+            4. ~/.config/tarot-oracle/invocations/name
+            5. ~/.config/tarot-oracle/invocations/name.txt
+            6. ~/.config/tarot-oracle/invocations/name.md
     """
 
     def load_invocation(self, name: str) -> str | None:
-        """Load invocation text by name using search order with security validation:
+        """Load invocation text by name using search order with security
+            validation:
 
-        Search order:
-        1. ./{name}
-        2. ./{name}.txt
-        3. ./{name}.md
-        4. ~/.config/tarot-oracle/invocations/{name}
-         5. ~/.config/tarot-oracle/invocations/{name}.txt
-         6. ~/.config/tarot-oracle/invocations/{name}.md
+            Search order:
+                1. ./{name}
+                2. ./{name}.txt
+                3. ./{name}.md
+                4. ~/.config/tarot-oracle/invocations/{name}
+                5. ~/.config/tarot-oracle/invocations/{name}.txt
+                6. ~/.config/tarot-oracle/invocations/{name}.md
          """
         conf = config()
         safe_name = sanitize_filename(name)
@@ -91,7 +75,8 @@ class InvocationLoader:
                     with open(text_file, 'r', encoding='utf-8') as f:
                         preview = f.read(100).strip()
                         if preview:
-                            preview = preview.replace('\n', ' ')[:97] + '...' if len(preview) > 100 else preview
+                            preview = preview.replace('\n', ' ')[:97] + '...' \
+                                if len(preview) > 100 else preview
                         else:
                             preview = "Empty invocation file"
 
@@ -106,57 +91,71 @@ class InvocationLoader:
 
         return invocations
 
+    def save_invocation(self, source_path: str) -> str:
+        """Save invocation from CWD to config directory. Validates readable
+            text, prompts for overwrite confirmation if exists. Returns saved
+            path.
+        """
+        conf = config()
+        source = Path(source_path).resolve()
+
+        if not source.exists():
+            raise ValueError(f"Source file not found: {source_path}")
+
+        # Validate extension
+        if source.suffix not in ['.txt', '.md', '']:
+            raise ValueError("Invocation must be .txt or .md file")
+
+        # Read and validate content
+        try:
+            with open(source, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+            if not content:
+                raise ValueError("Invocation file is empty")
+        except (OSError, UnicodeDecodeError) as e:
+            raise ValueError(f"Failed to read invocation: {e}")
+
+        # Use filename stem as invocation name
+        safe_name = sanitize_filename(source.stem)
+        if safe_name is None:
+            raise ValueError("Invalid invocation name")
+
+        invocations_dir = Path(conf.path("invocations"))
+        invocations_dir.mkdir(parents=True, exist_ok=True)
+
+        # Enforce .txt extension
+        target_path = invocations_dir / f"{safe_name}.txt"
+
+        # Check for existing file
+        if target_path.exists():
+            print(
+                f"Invocation '{safe_name}.txt' already exists in config directory."
+            )
+            response = input("Overwrite? (y/N): ").strip().lower()
+            if response != 'y':
+                print("Save cancelled.")
+                raise KeyboardInterrupt()
+
+        # Write content
+        try:
+            with open(target_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            return str(target_path)
+        except OSError as e:
+            raise OSError(f"Failed to save invocation: {e}")
+
 
 class SpreadLoader:
     """Handles loading and management of custom spread configurations.
 
-    Provides secure loading of custom spread configurations in JSON format with
-    comprehensive validation, search order prioritization, and semantic analysis
-    support. Supports variable placeholder syntax and guidance rule systems.
+        Provides secure loading of custom spread configurations in JSON
+        format with comprehensive validation, search order prioritization,
+        and semantic analysis support. Supports variable placeholder
+        syntax and guidance rule systems.
 
-    Features:
-        - Secure JSON spread loading with path traversal protection
-        - Search order: current directory, then user config directory
-        - Support for semantic groups and variable placeholders
-        - Validation of spread dimensions and configurations
-        - Guidance rule system for enhanced interpretations
-        - Metadata extraction for spread listings
-        - Support for both matrix and dictionary formats
-
-    Search Order:
-        1. ./{name}.json
-        2. ~/.config/tarot-oracle/spreads/{name}.json
-
-    Security Features:
-        - Path traversal protection
-        - Filename sanitization
-        - Directory validation
-        - Safe file resolution
-
-    Example:
-        >>> loader = SpreadLoader()
-        >>> spread = loader.load_spread("celtic-cross-enhanced")
-        >>> print(spread["name"])
-        >>> print(spread["layout"])  # Card position matrix
-        >>> print(spread.get("semantic_groups"))  # If semantic analysis enabled
-        >>>
-        >>> # List available spreads
-        >>> spreads = loader.list_spreads()
-        >>> for spread in spreads:
-        ...     print(f"{spread['filename']}: {spread['name']}")
-        >>>
-        >>> # Save new spread
-        >>> new_spread = {
-        ...     "name": "3-Card Enhanced",
-        ...     "description": "Past, present, future with semantic analysis",
-        ...     "layout": [[0], [1], [2]],
-        ...     "semantic_groups": {
-        ...         "past": {"positions": [0], "description": "Past influences"},
-        ...         "present": {"positions": [1], "description": "Current situation"},
-        ...         "future": {"positions": [2], "description": "Future potential"}
-        ...     }
-        ... }
-        >>> loader.save_spread("3-card-enhanced", new_spread)
+        Search Order:
+            1. ./{name}.json
+            2. ~/.config/tarot-oracle/spreads/{name}.json
     """
 
     def load_spread(self, name: str) -> dict[str, Any] | None:
@@ -185,18 +184,26 @@ class SpreadLoader:
                     continue
         return None
 
-    def _validate_spread_config(self, spread_config: dict[str, Any], path: str) -> dict[str, Any]:
+    def _validate_spread_config(
+            self, spread_config: dict[str, Any], path: str
+        ) -> dict[str, Any]:
         """Validate spread configuration structure and content, returning validated
             config or raising ValueError if invalid.
         """
         # Validate required fields
         if 'name' not in spread_config:
             spread_name = spread_config.get('name', 'unknown')
-            raise ValueError(f"Spread configuration must include 'name' field (spread: {spread_name})")
+            raise ValueError(
+                f"Spread configuration must include 'name' field (spread: "
+                f"{spread_name})"
+            )
 
         if 'layout' not in spread_config:
             spread_name = spread_config.get('name', 'unknown')
-            raise ValueError(f"Spread configuration must include 'layout' field (spread: {spread_name})")
+            raise ValueError(
+                f"Spread configuration must include 'layout' field (spread: "
+                f"{spread_name})"
+            )
 
         # Validate layout - support both matrix format and position dictionary format
         layout = spread_config['layout']
@@ -210,27 +217,40 @@ class SpreadLoader:
             for i, row in enumerate(layout):
                 if not isinstance(row, list):
                     spread_name = spread_config.get('name', 'unknown')
-                    raise ValueError(f"Layout row {i} must be a list (spread: {spread_name})")
+                    raise ValueError(
+                        f"Layout row {i} must be a list (spread: {spread_name})"
+                    )
                 for j, cell in enumerate(row):
                     if not isinstance(cell, int):
                         spread_name = spread_config.get('name', 'unknown')
-                        raise ValueError(f"Layout cell [{i}][{j}] must be an integer (spread: {spread_name})")
+                        raise ValueError(
+                            f"Layout cell [{i}][{j}] must be an integer (spread: "
+                            f"{spread_name})"
+                        )
         else:
             # Position dictionary format - traditional validation
             for i, position in enumerate(layout):
                 if not isinstance(position, dict):
                     spread_name = spread_config.get('name', 'unknown')
-                    raise ValueError(f"Layout position {i} must be a dictionary (spread: {spread_name})")
+                    raise ValueError(
+                        f"Layout position {i} must be a dictionary (spread: "
+                        f"{spread_name})"
+                    )
                 if 'position' not in position:
                     spread_name = spread_config.get('name', 'unknown')
-                    raise ValueError(f"Layout position {i} must include 'position' field (spread: {spread_name})")
+                    raise ValueError(
+                        f"Layout position {i} must include 'position' field "
+                        f"(spread: {spread_name})"
+                    )
 
         # Validate semantic groups if present
         if 'semantic_groups' in spread_config:
             semantic_groups = spread_config['semantic_groups']
             if not isinstance(semantic_groups, dict):
                 spread_name = spread_config.get('name', 'unknown')
-                raise ValueError(f"semantic_groups must be a dictionary (spread: {spread_name})")
+                raise ValueError(
+                    f"semantic_groups must be a dictionary (spread: {spread_name})"
+                )
 
         # Validate semantics matrix if present
         if 'semantics' in spread_config:
@@ -245,17 +265,25 @@ class SpreadLoader:
                 for i, row in enumerate(semantics):
                     if not isinstance(row, list):
                         spread_name = spread_config.get('name', 'unknown')
-                        raise ValueError(f"Semantics row {i} must be a list (spread: {spread_name})")
+                        raise ValueError(
+                            f"Semantics row {i} must be a list (spread: {spread_name})"
+                        )
                     for j, cell in enumerate(row):
                         if cell is not None and not isinstance(cell, str):
                             spread_name = spread_config.get('name', 'unknown')
-                            raise ValueError(f"Semantics cell [{i}][{j}] must be a string or null (spread: {spread_name})")
+                            raise ValueError(
+                                f"Semantics cell [{i}][{j}] must be a string or "
+                                f"null (spread: {spread_name})"
+                            )
             else:
                 # Dictionary format - traditional validation
                 for i, semantic in enumerate(semantics):
                     if not isinstance(semantic, dict):
                         spread_name = spread_config.get('name', 'unknown')
-                        raise ValueError(f"Semantics entry {i} must be a dictionary (spread: {spread_name})")
+                        raise ValueError(
+                            f"Semantics entry {i} must be a dictionary (spread: "
+                            f"{spread_name})"
+                        )
 
         # Validate variable placeholders in semantics (only for matrix format)
         semantics = spread_config.get('semantics', [])
@@ -264,7 +292,9 @@ class SpreadLoader:
 
         return spread_config
 
-    def _validate_variable_placeholders_matrix(self, semantics: list[list[str|None]], path: str) -> None:
+    def _validate_variable_placeholders_matrix(
+            self, semantics: list[list[str|None]], path: str
+        ) -> None:
         """Validate variable placeholder syntax in semantics matrix, raising
             ValueError if invalid variables are found.
         """
@@ -283,8 +313,9 @@ class SpreadLoader:
                     for match in matches:
                         if match not in valid_variables:
                             raise ValueError(
-                                f"Invalid variable placeholder '${{{match}}}' in semantics[{i}][{j}]. "
-                                f"Valid variables: {', '.join(sorted(valid_variables))}"
+                                f"Invalid variable placeholder '${{{match}}}' in "
+                                "semantics[{i}][{j}]. Valid variables: "
+                                f"{', '.join(sorted(valid_variables))}"
                             )
 
     def _validate_variable_placeholders(self, semantics: list[dict], path: str) -> None:
@@ -306,15 +337,15 @@ class SpreadLoader:
                     for match in matches:
                         if match not in valid_variables:
                             raise ValueError(
-                                f"Invalid variable placeholder '${{{match}}}' in semantics. "
-                                f"Valid variables: {', '.join(sorted(valid_variables))}"
+                                f"Invalid variable placeholder '${{{match}}}' in "
+                                "semantics. Valid variables: "
+                                f"{', '.join(sorted(valid_variables))}"
                             )
 
     def list_spreads(self) -> list[dict[str, str]]:
         """Scan ~/.tarot-oracle/spreads/ and return spread metadata.
-
-        Returns:
-            List of dictionaries containing spread metadata (filename, name, description)
+            Returns a list of dictionaries containing spread metadata
+            (filename, name, description)
         """
         conf = config()
         spreads_dir = Path(conf.path("spreads"))
@@ -331,7 +362,9 @@ class SpreadLoader:
                     spreads.append({
                         "filename": json_file.name,
                         "name": spread_data.get("name", "Unnamed Spread"),
-                        "description": spread_data.get("description", "No description available")
+                        "description": spread_data.get(
+                            "description", "No description available"
+                        )
                     })
             except Exception:
                 # Skip invalid spread files

@@ -112,6 +112,45 @@ class DeckLoader:
 
         return Deck(deck_path)
 
+    def save_deck(self, source_path: str) -> str:
+        """Save deck from CWD to config directory. Validates deck config,
+            prompts for overwrite confirmation if exists. Returns saved path.
+        """
+        conf = config()
+        source = Path(source_path).resolve()
+
+        if not source.exists():
+            raise ValueError(f"Source file not found: {source_path}")
+
+        # Load and validate deck config
+        deck_config = self.load_deck_config(str(source))
+
+        # Use filename stem as deck name
+        safe_name = sanitize_filename(source.stem)
+        if safe_name is None:
+            raise ValueError("Invalid deck name")
+
+        decks_dir = Path(conf.path("decks"))
+        decks_dir.mkdir(parents=True, exist_ok=True)
+
+        target_path = decks_dir / f"{safe_name}.json"
+
+        # Check for existing file
+        if target_path.exists():
+            print(f"Deck '{safe_name}.json' already exists in config directory.")
+            response = input("Overwrite? (y/N): ").strip().lower()
+            if response != 'y':
+                print("Save cancelled.")
+                raise KeyboardInterrupt()
+
+        # Copy validated config
+        try:
+            with open(target_path, 'w', encoding='utf-8') as f:
+                json.dump(deck_config, f, indent=2)
+            return str(target_path)
+        except OSError as e:
+            raise OSError(f"Failed to save deck: {e}")
+
 
 @dataclass
 class Card:
@@ -956,6 +995,14 @@ def create_parser() -> ArgumentParser:
         "--show-invocation", metavar="NAME",
         help="Display invocation text by name and exit"
     )
+    parser.add_argument(
+        "--save-deck", metavar="SOURCE",
+        help="Save deck from current directory to config location"
+    )
+    parser.add_argument(
+        "--save-spread", metavar="SOURCE",
+        help="Save spread from current directory to config location"
+    )
     return parser
 
 
@@ -1090,6 +1137,51 @@ def main(args=None) -> int:
                     print(f"  {filename:<20} - {name:<20}")
 
         return 0
+
+    # Handle --save-deck mode
+    if args.save_deck:
+        deck_loader = DeckLoader()
+        try:
+            saved_path = deck_loader.save_deck(args.save_deck)
+            print(f"Deck saved to: {saved_path}")
+            return 0
+        except KeyboardInterrupt:
+            return 0
+        except Exception as e:
+            print(f"Error: {e}", file=stderr)
+            return 1
+
+    # Handle --save-spread mode
+    if args.save_spread:
+        spread_loader = SpreadLoader()
+        try:
+            spread_path = Path(args.save_spread).resolve()
+
+            # Validate path is within project (security)
+            cwd_resolved = Path.cwd().resolve()
+            try:
+                spread_path.relative_to(cwd_resolved)
+            except ValueError:
+                raise ValueError(
+                    "Source file must be in or below current directory"
+                )
+
+            with open(spread_path, 'r', encoding='utf-8') as f:
+                spread_config = json.load(f)
+
+            # Use filename stem as spread name
+            safe_name = sanitize_filename(spread_path.stem)
+            if safe_name is None:
+                raise ValueError("Invalid spread name")
+
+            saved_path = spread_loader.save_spread(safe_name, spread_config)
+            print(f"Spread saved to: {saved_path}")
+            return 0
+        except KeyboardInterrupt:
+            return 0
+        except Exception as e:
+            print(f"Error: {e}", file=stderr)
+            return 1
 
     # Handle lookup mode
     if args.lookup:
