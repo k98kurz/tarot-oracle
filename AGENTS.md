@@ -64,6 +64,15 @@ def something():
             and one_more_condition:
             ...
 ```
+- If a function/method signature is too long, format as follows:
+```python
+        def some_method(
+                self, first_param: str, second_param: int,
+                third_param: dict[str, Any]|None = None
+            ) -> list[str]:
+            """Brief docstring."""
+            ...
+```
 
 ### Type Annotations
 - Use union type syntax with `|`: `str | None` instead of `Optional[str]`
@@ -251,7 +260,6 @@ class TestLoaders(unittest.TestCase):
 
 ## Important Notes
 - **No comments in code** unless explicitly requested
-- This project is in active development (v0.1.0 work-in-progress)
 - All file operations must validate paths to prevent directory traversal (use helpers)
 - Always use UTF-8 encoding for file I/O
 - Use standard Python exceptions only - no custom exceptions

@@ -573,9 +573,11 @@ class SpreadRenderer:
 class SemanticAdapter:
     """Maps cards to semantic meanings based on spread position."""
 
-    def __init__(self, layout: list[list[int]], cards: list[Card],
-                 semantics: list[list[str]]|None = None,
-                 semantic_groups: dict[str, str]|None = None) -> None:
+    def __init__(
+            self, layout: list[list[int]], cards: list[Card],
+            semantics: list[list[str]]|None = None,
+            semantic_groups: dict[str, str]|None = None
+        ) -> None:
         """Initialize adapter with layout, cards, semantics matrix, and optional
             semantic_groups for variable placeholder resolution.
         """
